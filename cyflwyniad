@@ -151,14 +151,25 @@ def parse(tokens):
 def render(config_text, style_text, slides_text):
   return '''
   <html>
-    <style>
-      %s
-    </style>
+    <head>
+      <link rel='stylesheet' href="reveal.js-3.3.0/css/reveal.css">
+      <link rel='stylesheet' href="reveal.js-3.3.0/css/theme/white.css">
+      <style>
+        %s
+      </style>
+    </head> 
     <body>
-      %s
+      <div class=reveal>
+        <div class=slides>
+          %s
+        </div>
+      </div>
     </body>
+    <script src="reveal.js-3.3.0/js/reveal.js"></script>
     <script>
-      %s
+      Reveal.initialize({
+        %s
+      });
     </script>
   </html>
 ''' % (style_text, slides_text, config_text)
@@ -200,7 +211,7 @@ def main():
   html = render(config_text, style_text, slides_text)
 
   # Reduce the HTML size.
-  html = htmlmin.minify(unicode(html),remove_comments=True, reduce_boolean_attributes=True, remove_all_empty_space=True)
+  #html = htmlmin.minify(unicode(html),remove_comments=True, reduce_boolean_attributes=True, remove_all_empty_space=True)
 
   # Save the rendered page.
   if args.output_filename != '-':
