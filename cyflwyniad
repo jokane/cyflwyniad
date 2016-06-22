@@ -7,16 +7,45 @@ import argparse
 import re
 import sys
 
-# Enumeration for Token types.
+# Token Types.
 class TT:
-  config = 1
-  style = 2
-  slides = 3
-  slide_boundary = 4
-  character = 5
+  comment = 'comment'
+  config = 'config'
+  style = 'style'
+  slides = 'slides'
+  slide_boundary = 'slide boundary'
+  character = 'simple character'
+
+# Parser states.
+class S:
+  initial = 'initial'
+  config = 'config'
+  style = 'style'
+  slides = 'slides'
+
 
 def complain(message):
   raise Exception(message)
+
+
+def state_initial(tt, token):
+  # We're at the very start of the file.
+  # The first thing should be a section heading.
+  if tt == TT.config: return state_config
+  if tt == TT.style: return state_style
+  if tt == TT.slides: return state_slides
+  complain('Unexpected token:' + token)
+
+def state_config(tt, token):
+  pass
+
+def state_style(tt, token):
+  pass
+
+def state_slides(tt, token):
+  pass
+
+
 
 def main():
   # Sort out the command line.
@@ -41,11 +70,12 @@ def main():
   # to search for.  We peel off the first matching pattern, and then repeat
   # until nothing is left.
   patterns = [
+    (r'\n', TT.comment),
+    (r'//.*', TT.comment),
     (r'\[config\]', TT.config),
     (r'\[style\]', TT.style),
     (r'\[slides\]', TT.slides),
     (r'-{5,}', TT.slide_boundary),
-    (r'\n', TT.character),
     (r'.', TT.character)
   ]
 
@@ -59,7 +89,36 @@ def main():
         x = x[len(token):]
         break
 
-  print tokens
+  # Remove the comments first, to make the transition table simpler.
+  tokens = filter(lambda x: x[0] != TT.comment, tokens)
+
+  # Parse the input.  Use a transition table, keyed state/token-type pairs.
+  # Each maps to a next state and a function to handle that token.
+  transitions = {
+    # Major mode transitions.
+    (S.initial, TT.config) : (S.config, None),
+    (S.initial, TT.style)  : (S.style, None),
+    (S.initial, TT.slides) : (S.slides, None),
+    (S.config,  TT.style)  : (S.style, None),
+    (S.config,  TT.slides) : (S.slides, None),
+    (S.style,   TT.config) : (S.config, None),
+    (S.style,   TT.slides) : (S.slides, None),
+    (S.slides,  TT.config) : (S.config, None),
+    (S.slides,  TT.style)  : (S.style, None),
+  }
+
+  state = S.initial
+  for tt, token in tokens:
+    try:
+      (next_state, func) = transitions[state, tt]
+    except KeyError:
+      complain('Did not expect a %s in %s state.' % (tt, state))
+
+    if func:
+      func(tt, token)
+    state = next_state
+
+
 
 
 if __name__ == '__main__':
