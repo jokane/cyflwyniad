@@ -31,6 +31,18 @@ class S:
   slides = 'slides'   # At the start of a slides section.  Need a slide title next.
   in_slide = 'inside slide' # Ready for the content of a slide.
 
+# A token class.  Mainly useful because it can keep track of a location in the
+# input file, for error messages.
+class Token:
+  def __init__(self, _tt, _text, _filename, _line):
+    self.tt = _tt
+    self.text = _text
+    self.filename = _filename
+    self.line = _line
+
+  def complain(self, message):
+    complain("%s(%d): %s" % (self.filename, self.line, message))
+
 
 def complain(message):
   raise Exception(message)
@@ -65,53 +77,53 @@ def lex(x):
           token = match.group(1)
         except IndexError:
           token = None
-        tokens.append((tt, token))
+        tokens.append(Token(tt, token, "?", 0))
         x = x[len(match.group(0)):]
         break
 
   return tokens
 
-def append_to_config(tt, token):
+def append_to_config(token):
   global config_text 
-  config_text += token
+  config_text += token.text
 
-def append_to_style(tt, token):
+def append_to_style(token):
   global style_text 
-  style_text += token
+  style_text += token.text
 
-def append_to_slides(tt, token):
+def append_to_slides(token):
   global slides_text 
-  slides_text += token
+  slides_text += token.text
 
-def begin_slide(tt, token):
+def begin_slide(token):
   global slides_text
   slides_text += "<section>"
-  slides_text += "<h1>" + token + "</h1>"
+  slides_text += "<h1>" + token.text + "</h1>"
 
 def end_slide():
   global slides_text
   slides_text += "</section>"
 
-def end_and_begin_slide(tt, token):
+def end_and_begin_slide(token):
   end_slide()
-  begin_slide(tt, token)
+  begin_slide(tt, token.text)
 
-def begin_center(tt, token):
+def begin_center(token):
   global slides_text
   slides_text += "<center>"
   
-def end_center(tt, token):
+def end_center(token):
   global slides_text
   slides_text += "</center>"
 
-def include_file(tt, token):
-  print "include", token
-  process_cy(token)
+def include_file(token):
+  print "include", token.text
+  process_cy(token.text)
 
 
 def parse(tokens):
   # Remove the comments first, to make the transition table simpler.
-  tokens = filter(lambda x: x[0] != TT.comment, tokens)
+  tokens = filter(lambda x: x.tt != TT.comment, tokens)
 
   # The main outcome will be strings to drop into the final HTML file.
   global config_text, style_text, slides_text
@@ -138,8 +150,8 @@ def parse(tokens):
 
     # Outside of the slides section, closing braces don't need any special
     # treatment.
-    (S.config, TT.end_div) : (lambda x, y: append_to_config(TT.character, '}'), S.config),
-    (S.style,  TT.end_div) : (lambda x, y: append_to_style( TT.character, '}'), S.config),
+    (S.config, TT.end_div) : (lambda token: append_to_config(Token(TT.character, '}', token.filename, token.line)), S.config),
+    (S.style, TT.end_div)  : (lambda token: append_to_config(Token(TT.character, '}', token.filename, token.line)), S.style),
 
     # Raw characters and newlines are usually just added to the appropriate section.
     (S.initial, TT.newline)    : (None, S.initial),
@@ -176,13 +188,13 @@ def parse(tokens):
 
   # Actually process the token stream.
   state = S.initial
-  for tt, token in tokens:
+  for token in tokens:
     try:
-      (func, next_state) = transitions[state, tt]
+      (func, next_state) = transitions[state, token.tt]
     except KeyError:
-      complain('Did not expect a %s (%s) in %s state.' % (tt, token, state))
+      token.complain('Did not expect a %s (%s) in %s state.' % (token.tt, token.text, state))
     if func:
-      func(tt, token)
+      func(token)
     state = next_state
   
   # Some states have cleanup that should happen if we terminate in them.  An
@@ -284,3 +296,4 @@ def main():
 
 if __name__ == '__main__':
   main()
+
