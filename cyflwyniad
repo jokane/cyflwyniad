@@ -40,22 +40,22 @@ def main():
   # Tokenize the input.  The patterns below are a prioritized list of patterns
   # to search for.  We peel off the first matching pattern, and then repeat
   # until nothing is left.
-  patterns = {
-    r'\[config\]': TT.config,
-    r'\[style\]': TT.style,
-    r'\[slides\]': TT.slides,
-    r'-{5,}': TT.slide_boundary,
-    r'\n', TT.character,
-    r'.', TT.character
+  patterns = [
+    (r'\[config\]', TT.config),
+    (r'\[style\]', TT.style),
+    (r'\[slides\]', TT.slides),
+    (r'-{5,}', TT.slide_boundary),
+    (r'\n', TT.character),
+    (r'.', TT.character)
   ]
 
   tokens = list()
   while x:
-    for pattern in patterns:
+    for (pattern, tt) in patterns:
       match = re.search('^(' + pattern + ')', x)
       if match:
         token = match.groups(1)[0]
-        tokens.append(token)
+        tokens.append((tt, token))
         x = x[len(token):]
         break
 
