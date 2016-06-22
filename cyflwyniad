@@ -80,10 +80,17 @@ def begin_slide(tt, token):
   slides_text += "<section>"
   slides_text += "<h1>" + token + "</h1>"
 
+def end_slide():
+  global slides_text
+  slides_text += "</section>"
+
+def end_and_begin_slide(tt, token):
+  end_slide()
+  begin_slide(tt, token)
+
 def include_file(tt, token):
   print "include", token
   process_cy(token)
-
 
 
 def parse(tokens):
@@ -137,6 +144,9 @@ def parse(tokens):
 
     # The slides section should begin with a slide title.
     (S.slides, TT.slide_title) : (begin_slide, S.in_slide),
+
+    # When we see the next title, start a new slide.
+    (S.in_slide, TT.slide_title) : (end_and_begin_slide, S.in_slide),
   }
 
   # Actually process the token stream.
@@ -149,9 +159,24 @@ def parse(tokens):
     if func:
       func(tt, token)
     state = next_state
+  
+  # Some states have cleanup that should happen if we terminate in them.  An
+  # None entry in the table means that terminating here is OK, but there's
+  # nothing to do.
+  cleanup = {
+    S.style : None,
+    S.in_slide : end_slide,
+  }
 
-  # Nothing to return here -- the work is done by appending things to the
-  # *_text variables.
+  try:
+    cleanup_func = cleanup[state]
+  except KeyError:
+    complain('Did not expect end-of-file in %s state.' % (state))
+  if cleanup_func:
+    cleanup_func()
+
+  # All done.  Nothing to return here -- the work is done by appending things
+  # to the *_text variables.
   pass
 
 def render(config_text, style_text, slides_text):
