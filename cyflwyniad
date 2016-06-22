@@ -58,7 +58,7 @@ def lex(x):
     (r'\[config\]', TT.config),
     (r'\[style\]', TT.style),
     (r'\[slides\]', TT.slides),
-    (r'#{5,}\S*(.*)\S*#*', TT.slide_title),
+    (r'#{5,}\S*([^#]*)\S*#{5,}', TT.slide_title),
     (r'(.)', TT.character)
   ]
 
@@ -170,15 +170,21 @@ def main():
 
   # Make sure we have reasonable filenames.
   if not args.output_filename:
-    args.output_filename = re.sub('\.cy$', '.html', args.input_filename)
-  if args.input_filename == args.output_filename:
+    if args.input_filename != '-':
+      args.output_filename = re.sub('\.cy$', '.html', args.input_filename)
+    else:
+      args.output_filename = '-'
+  if args.input_filename == args.output_filename and args.input_filename != '-':
     complain('Input and output filenames are the same.')
   
-  print args.input_filename, '-->', args.output_filename
+  print >>sys.stderr, args.input_filename, '-->', args.output_filename
 
   # Read the input file.
-  with open(args.input_filename, 'r') as f:
-    x = f.read()
+  if args.input_filename != '-':
+    f = open(args.input_filename, 'r')
+  else:
+    f = sys.stdin
+  x = f.read()
 
   # Split into tokens.
   tokens = lex(x)
@@ -190,8 +196,11 @@ def main():
   html = render(config_text, style_text, slides_text)
 
   # Save the rendered page.
-  with open(args.output_filename, 'w') as f:
-    print >>f, html
+  if args.output_filename != '-':
+    f = open(args.output_filename, 'w')
+  else:
+    f = sys.stdout
+  print >>f, html
 
 
 
