@@ -17,6 +17,7 @@ class TT:
   slide_title = 'slide title'
   newline = 'newline'
   character = 'simple character'
+  include = 'include directive'
 
 # Parser states.
 class S:
@@ -42,6 +43,7 @@ def lex(x):
     (r'\[config\]', TT.config),
     (r'\[style\]', TT.style),
     (r'\[slides\]', TT.slides),
+    (r'#include (.*)', TT.include),
     (r'#{5,}\s*([^#]*?)\s*#{5,}', TT.slide_title),
     (r'(.)', TT.character)
   ]
@@ -77,6 +79,11 @@ def begin_slide(tt, token):
   global slides_text
   slides_text += "<section>"
   slides_text += "<h1>" + token + "</h1>"
+
+def include_file(tt, token):
+  print "include", token
+  process_cy(token)
+
 
 
 def parse(tokens):
@@ -121,19 +128,16 @@ def parse(tokens):
     (S.in_slide, TT.newline)   : (append_to_slides, S.in_slide),
     (S.in_slide, TT.character) : (append_to_slides, S.in_slide),
 
+    # Includes are allowed anywhere.
+    (S.initial,  TT.include) : (include_file, S.initial),
+    (S.config,   TT.include) : (include_file, S.initial),
+    (S.style,    TT.include) : (include_file, S.initial),
+    (S.slides,   TT.include) : (include_file, S.initial),
+    (S.in_slide, TT.include) : (include_file, S.initial),
+
     # The slides section should begin with a slide title.
     (S.slides, TT.slide_title) : (begin_slide, S.in_slide),
   }
-
-
-  # Decorator for adding functions to the transition table.  We're doing it
-  # this way because lambda functions can't have assignments.  (Based on:
-  # http://stackoverflow.com/questions/6629876/how-to-make-an-anonymous-function-in-python-without-christening-it)
-  def transition_for(state, tt, new_state):
-    def x(f):
-      transitions[(state, tt)] = (new_state, f)
-    return x
-
 
   # Actually process the token stream.
   state = S.initial
@@ -146,7 +150,9 @@ def parse(tokens):
       func(tt, token)
     state = next_state
 
-  return config_text, style_text, slides_text
+  # Nothing to return here -- the work is done by appending things to the
+  # *_text variables.
+  pass
 
 def render(config_text, style_text, slides_text):
   return '''
@@ -175,6 +181,20 @@ def render(config_text, style_text, slides_text):
 ''' % (style_text, slides_text, config_text)
 
 
+def process_cy(input_filename):
+  # Read the input file.
+  if input_filename != '-':
+    f = open(input_filename, 'r')
+  else:
+    f = sys.stdin
+  x = f.read()
+
+  # Split into tokens.
+  tokens = lex(x)
+
+  # Convert the token list into the actual HTML text that we want.  This adds
+  # to *_text as a side effect.
+  parse(tokens)
 
 def main():
   # Sort out the command line.
@@ -194,18 +214,8 @@ def main():
   
   print >>sys.stderr, args.input_filename, '-->', args.output_filename
 
-  # Read the input file.
-  if args.input_filename != '-':
-    f = open(args.input_filename, 'r')
-  else:
-    f = sys.stdin
-  x = f.read()
-
-  # Split into tokens.
-  tokens = lex(x)
-
-  # Convert the token list into the actual HTML text that we want.
-  config_text, style_text, slides_text = parse(tokens)
+  # Read and execute the input.
+  process_cy(args.input_filename)
 
   # Build the HTML page based on these components.
   html = render(config_text, style_text, slides_text)
