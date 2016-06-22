@@ -68,17 +68,20 @@ def lex(filename, x):
     (r'(.)', TT.character)
   ]
 
+  line = 1
   tokens = list()
   while x:
     for (pattern, tt) in patterns:
       match = re.search('^' + pattern, x)
       if match:
+        eaten = match.group(0)
         try:
           token = match.group(1)
         except IndexError:
           token = None
-        tokens.append(Token(tt, token, filename, 0))
-        x = x[len(match.group(0)):]
+        tokens.append(Token(tt, token, filename, line))
+        line += eaten.count('\n')
+        x = x[len(eaten):]
         break
 
   return tokens
