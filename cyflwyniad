@@ -7,6 +7,7 @@ import argparse
 import re
 import sys
 import htmlmin
+from bs4 import BeautifulSoup
 
 # Token Types.
 class TT:
@@ -42,6 +43,9 @@ class Token:
 
   def complain(self, message):
     complain("%s(%d): %s" % (self.filename, self.line, message))
+
+  def __repr__(self):
+    return "Token(%s, %s, %s, %s)" % (self.tt.__repr__(), self.text.__repr__(), self.filename.__repr__(), self.line.__repr__())
 
 
 def complain(message):
@@ -109,7 +113,7 @@ def end_slide():
 
 def end_and_begin_slide(token):
   end_slide()
-  begin_slide(tt, token.text)
+  begin_slide(token)
 
 def begin_center(token):
   global slides_text
@@ -119,6 +123,14 @@ def end_center(token):
   global slides_text
   slides_text += "</center>"
 
+def begin_div(token):
+  global slides_text
+  slides_text += "<div class=%s>" % token.text
+
+def end_div(token):
+  global slides_text
+  slides_text += "</div>"
+
 def include_file(token):
   print "include", token.text
   process_cy(token.text)
@@ -127,12 +139,6 @@ def include_file(token):
 def parse(tokens):
   # Remove the comments first, to make the transition table simpler.
   tokens = filter(lambda x: x.tt != TT.comment, tokens)
-
-  # The main outcome will be strings to drop into the final HTML file.
-  global config_text, style_text, slides_text
-  config_text = ""
-  style_text = ""
-  slides_text = ""
 
   # Parse the input using a transition table keyed state/token-type pairs.
   # Each maps to a next state and a function to handle that token.
@@ -154,16 +160,17 @@ def parse(tokens):
     # Outside of the slides section, closing braces don't need any special
     # treatment.
     (S.config, TT.end_div) : (lambda token: append_to_config(Token(TT.character, '}', token.filename, token.line)), S.config),
-    (S.style, TT.end_div)  : (lambda token: append_to_config(Token(TT.character, '}', token.filename, token.line)), S.style),
+    (S.style, TT.end_div)  : (lambda token: append_to_style(Token(TT.character, '}', token.filename, token.line)), S.style),
 
-    # Raw characters and newlines are usually just added to the appropriate section.
+    # Raw characters and newlines are usually just added to the appropriate
+    # section.
     (S.initial, TT.newline)    : (None, S.initial),
 
-    (S.config , TT.newline)    : (append_to_config, S.config),
-    (S.config , TT.character)  : (append_to_config, S.config),
+    (S.config,  TT.newline)    : (append_to_config, S.config),
+    (S.config,  TT.character)  : (append_to_config, S.config),
 
-    (S.style , TT.newline)     : (append_to_style, S.style),
-    (S.style , TT.character)   : (append_to_style, S.style),
+    (S.style,  TT.newline)     : (append_to_style, S.style),
+    (S.style,  TT.character)   : (append_to_style, S.style),
 
     (S.slides, TT.newline)     : (append_to_slides, S.slides),
 
@@ -187,6 +194,8 @@ def parse(tokens):
     # Some HTML shortcuts for slide contents.
     (S.in_slide, TT.begin_center) : (begin_center, S.in_slide),
     (S.in_slide, TT.end_center)   : (end_center,   S.in_slide),
+    (S.in_slide, TT.begin_div)    : (begin_div,    S.in_slide),
+    (S.in_slide, TT.end_div)      : (end_div,      S.in_slide),
   }
 
   # Actually process the token stream.
@@ -219,7 +228,7 @@ def parse(tokens):
   # to the *_text variables.
   pass
 
-def render(config_text, style_text, slides_text):
+def render():
   return '''
   <html>
     <head>
@@ -279,14 +288,24 @@ def main():
   
   print >>sys.stderr, args.input_filename, '-->', args.output_filename
 
+  # The main outcome will be strings to drop into the final HTML file.  Start
+  # with nothing.
+  global config_text, style_text, slides_text
+  config_text = ""
+  style_text = ""
+  slides_text = ""
+
   # Read and execute the input.
   process_cy(args.input_filename)
 
   # Build the HTML page based on these components.
-  html = render(config_text, style_text, slides_text)
+  html = render()
 
   # Reduce the HTML size.
   #html = htmlmin.minify(unicode(html),remove_comments=True, reduce_boolean_attributes=True, remove_all_empty_space=True)
+
+  # Make the HTML pretty.
+  html = BeautifulSoup(html, 'lxml').prettify()
 
   # Save the rendered page.
   if args.output_filename != '-':
