@@ -13,15 +13,16 @@ class TT:
   config = 'config'
   style = 'style'
   slides = 'slides'
-  slide_boundary = 'slide boundary'
+  slide_title = 'slide title'
   character = 'simple character'
 
 # Parser states.
 class S:
-  initial = 'initial'
-  config = 'config'
-  style = 'style'
-  slides = 'slides'
+  initial = 'initial' # The initial state.  Next should be a major section heading.
+  config = 'config'   # Configuration for reveal.js.  Just raw characters.
+  style = 'style'     # Top-level CSS.  Just raw characters.
+  slides = 'slides'   # At the start of a slides section.  Need a slide title next.
+  in_slide = 'inside slide' # Ready for the content of a slide.
 
 
 def complain(message):
@@ -46,6 +47,119 @@ def state_slides(tt, token):
   pass
 
 
+def lex(x):
+  # Tokenize the input.  The patterns below are a prioritized list of patterns
+  # to search for.  We peel off the first matching pattern, and then repeat
+  # until nothing is left.  Each pattern can have a () group, which will become
+  # the token text.
+  patterns = [
+    (r'(\n)', TT.comment),
+    (r'(//.*)', TT.comment),
+    (r'\[config\]', TT.config),
+    (r'\[style\]', TT.style),
+    (r'\[slides\]', TT.slides),
+    (r'#{5,}\S*(.*)\S*#*', TT.slide_title),
+    (r'(.)', TT.character)
+  ]
+
+  tokens = list()
+  while x:
+    for (pattern, tt) in patterns:
+      match = re.search('^' + pattern, x)
+      if match:
+        try:
+          token = match.group(1)
+        except IndexError:
+          token = None
+        tokens.append((tt, token))
+        x = x[len(match.group(0)):]
+        break
+
+  return tokens
+
+def parse(tokens):
+  # Remove the comments first, to make the transition table simpler.
+  tokens = filter(lambda x: x[0] != TT.comment, tokens)
+
+  # The main outcome will be strings to drop into the final HTML file.
+  global config_text, style_text, slides_text
+  config_text = ""
+  style_text = ""
+  slides_text = ""
+
+  # Parse the input using a transition table keyed state/token-type pairs.
+  # Each maps to a next state and a function to handle that token.
+  transitions = {
+    # Major mode transitions.
+    (S.initial, TT.config) : (S.config, None),
+    (S.initial, TT.style)  : (S.style, None),
+    (S.initial, TT.slides) : (S.slides, None),
+    (S.config,  TT.style)  : (S.style, None),
+    (S.config,  TT.slides) : (S.slides, None),
+    (S.style,   TT.config) : (S.config, None),
+    (S.style,   TT.slides) : (S.slides, None),
+    (S.slides,  TT.config) : (S.config, None),
+    (S.slides,  TT.style)  : (S.style, None),
+  }
+
+  # Decorator for adding functions to the transition table.  We're doing it
+  # this way because lambda functions can't have assignments.  (Based on:
+  # http://stackoverflow.com/questions/6629876/how-to-make-an-anonymous-function-in-python-without-christening-it)
+  def transition_for(state, tt, new_state):
+    def x(f):
+      transitions[(state, tt)] = (new_state, f)
+    return x
+
+  @transition_for(S.config, TT.character, S.config)
+  def xxx(tt, token):
+    global config_text 
+    config_text += token
+
+  @transition_for(S.style, TT.character, S.style)
+  def xxx(tt, token):
+    global style_text 
+    style_text += token
+
+  @transition_for(S.slides, TT.slide_title, S.in_slide)
+  def xxx(tt, token):
+    global slides_text
+    slides_text += "<section>"
+    slides_text += "<h1>" + token + "</h1>"
+
+  @transition_for(S.in_slide, TT.character, S.in_slide)
+  def xxx(tt, token):
+    global slides_text
+    slides_text += token
+
+  # Actually process the token stream.
+  state = S.initial
+  for tt, token in tokens:
+    try:
+      (next_state, func) = transitions[state, tt]
+    except KeyError:
+      complain('Did not expect a %s in %s state.' % (tt, state))
+    if func:
+      func(tt, token)
+    state = next_state
+
+  return config_text, style_text, slides_text
+
+def render(config_text, style_text, slides_text):
+  return '''
+  <html>
+    <style>
+      %s
+    </style>
+    <body>
+      %s
+    </body>
+    <script>
+      %s
+    </script>
+  </html>
+''' % (style_text, slides_text, config_text)
+
+
 
 def main():
   # Sort out the command line.
@@ -66,58 +180,18 @@ def main():
   with open(args.input_filename, 'r') as f:
     x = f.read()
 
-  # Tokenize the input.  The patterns below are a prioritized list of patterns
-  # to search for.  We peel off the first matching pattern, and then repeat
-  # until nothing is left.
-  patterns = [
-    (r'\n', TT.comment),
-    (r'//.*', TT.comment),
-    (r'\[config\]', TT.config),
-    (r'\[style\]', TT.style),
-    (r'\[slides\]', TT.slides),
-    (r'-{5,}', TT.slide_boundary),
-    (r'.', TT.character)
-  ]
+  # Split into tokens.
+  tokens = lex(x)
 
-  tokens = list()
-  while x:
-    for (pattern, tt) in patterns:
-      match = re.search('^(' + pattern + ')', x)
-      if match:
-        token = match.groups(1)[0]
-        tokens.append((tt, token))
-        x = x[len(token):]
-        break
+  # Convert the token list into the actual HTML text that we want.
+  config_text, style_text, slides_text = parse(tokens)
 
-  # Remove the comments first, to make the transition table simpler.
-  tokens = filter(lambda x: x[0] != TT.comment, tokens)
+  # Build the HTML page based on these components.
+  html = render(config_text, style_text, slides_text)
 
-  # Parse the input.  Use a transition table, keyed state/token-type pairs.
-  # Each maps to a next state and a function to handle that token.
-  transitions = {
-    # Major mode transitions.
-    (S.initial, TT.config) : (S.config, None),
-    (S.initial, TT.style)  : (S.style, None),
-    (S.initial, TT.slides) : (S.slides, None),
-    (S.config,  TT.style)  : (S.style, None),
-    (S.config,  TT.slides) : (S.slides, None),
-    (S.style,   TT.config) : (S.config, None),
-    (S.style,   TT.slides) : (S.slides, None),
-    (S.slides,  TT.config) : (S.config, None),
-    (S.slides,  TT.style)  : (S.style, None),
-  }
-
-  state = S.initial
-  for tt, token in tokens:
-    try:
-      (next_state, func) = transitions[state, tt]
-    except KeyError:
-      complain('Did not expect a %s in %s state.' % (tt, state))
-
-    if func:
-      func(tt, token)
-    state = next_state
-
+  # Save the rendered page.
+  with open(args.output_filename, 'w') as f:
+    print >>f, html
 
 
 
