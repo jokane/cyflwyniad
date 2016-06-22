@@ -20,6 +20,8 @@ class TT:
   include = 'include directive'
   begin_center = 'begin_centering'
   end_center = 'end_centering'
+  begin_div = 'begin div'
+  end_div = 'end div'
 
 # Parser states.
 class S:
@@ -49,6 +51,8 @@ def lex(x):
     (r'#{5,}\s*([^#]*?)\s*#{5,}', TT.slide_title),
     (r'-->', TT.begin_center),
     (r'<--', TT.end_center),
+    (r'!([a-zA-Z_]*){', TT.begin_div),
+    (r'}', TT.end_div),
     (r'(.)', TT.character)
   ]
 
@@ -132,8 +136,12 @@ def parse(tokens):
     (S.slides,  TT.config)  : (None, S.config),
     (S.slides,  TT.style)   : (None, S.style),
 
+    # Outside of the slides section, closing braces don't need any special
+    # treatment.
+    (S.config, TT.end_div) : (lambda x, y: append_to_config(TT.character, '}'), S.config),
+    (S.style,  TT.end_div) : (lambda x, y: append_to_style( TT.character, '}'), S.config),
 
-    # Raw characters and newlines.
+    # Raw characters and newlines are usually just added to the appropriate section.
     (S.initial, TT.newline)    : (None, S.initial),
 
     (S.config , TT.newline)    : (append_to_config, S.config),
@@ -146,6 +154,7 @@ def parse(tokens):
 
     (S.in_slide, TT.newline)   : (append_to_slides, S.in_slide),
     (S.in_slide, TT.character) : (append_to_slides, S.in_slide),
+
 
     # Includes are allowed anywhere.
     (S.initial,  TT.include) : (include_file, S.initial),
