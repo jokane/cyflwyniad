@@ -18,6 +18,8 @@ class TT:
   newline = 'newline'
   character = 'simple character'
   include = 'include directive'
+  begin_center = 'begin_centering'
+  end_center = 'end_centering'
 
 # Parser states.
 class S:
@@ -45,6 +47,8 @@ def lex(x):
     (r'\[slides\]', TT.slides),
     (r'#include (.*)', TT.include),
     (r'#{5,}\s*([^#]*?)\s*#{5,}', TT.slide_title),
+    (r'-->', TT.begin_center),
+    (r'<--', TT.end_center),
     (r'(.)', TT.character)
   ]
 
@@ -87,6 +91,14 @@ def end_slide():
 def end_and_begin_slide(tt, token):
   end_slide()
   begin_slide(tt, token)
+
+def begin_center(tt, token):
+  global slides_text
+  slides_text += "<center>"
+  
+def end_center(tt, token):
+  global slides_text
+  slides_text += "</center>"
 
 def include_file(tt, token):
   print "include", token
@@ -147,6 +159,10 @@ def parse(tokens):
 
     # When we see the next title, start a new slide.
     (S.in_slide, TT.slide_title) : (end_and_begin_slide, S.in_slide),
+
+    # Some HTML shortcuts for slide contents.
+    (S.in_slide, TT.begin_center) : (begin_center, S.in_slide),
+    (S.in_slide, TT.end_center)   : (end_center,   S.in_slide),
   }
 
   # Actually process the token stream.
