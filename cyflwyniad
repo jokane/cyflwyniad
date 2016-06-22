@@ -48,7 +48,7 @@ def complain(message):
   raise Exception(message)
 
 
-def lex(x):
+def lex(filename, x):
   # Tokenize the input.  The patterns below are a prioritized list of patterns
   # to search for.  We peel off the first matching pattern, and then repeat
   # until nothing is left.  Each pattern can have a () group, which will become
@@ -77,7 +77,7 @@ def lex(x):
           token = match.group(1)
         except IndexError:
           token = None
-        tokens.append(Token(tt, token, "?", 0))
+        tokens.append(Token(tt, token, filename, 0))
         x = x[len(match.group(0)):]
         break
 
@@ -252,7 +252,7 @@ def process_cy(input_filename):
   x = f.read()
 
   # Split into tokens.
-  tokens = lex(x)
+  tokens = lex(input_filename, x)
 
   # Convert the token list into the actual HTML text that we want.  This adds
   # to *_text as a side effect.
