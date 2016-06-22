@@ -24,8 +24,31 @@ def main():
   if args.input_filename == args.output_filename:
     complain('Input and output filenames are the same.')
   
-
   print args.input_filename, '-->', args.output_filename
+
+  # Read the input file.
+  with open(args.input_filename, 'r') as f:
+    x = f.read()
+
+  # Tokenize the input.
+  patterns = [
+    r'\[config\]',
+    r'\[style\]',
+    r'\[slides\]',
+    r'-{5,}',
+    r'.'
+  ]
+  tokens = list()
+  while x:
+    for pattern in patterns:
+      match = re.search('^(' + pattern + ')', x)
+      if match:
+        token = match.groups(1)
+        tokens.append(token)
+        print 'before:', x
+        x = x[len(token):]
+        print 'after:', x
+        break
 
 
 
