@@ -7,6 +7,13 @@ import argparse
 import re
 import sys
 
+# Enumeration for Token types.
+class TT:
+  config = 1
+  style = 2
+  slides = 3
+  slide_boundary = 4
+  character = 5
 
 def complain(message):
   raise Exception(message)
@@ -30,26 +37,29 @@ def main():
   with open(args.input_filename, 'r') as f:
     x = f.read()
 
-  # Tokenize the input.
-  patterns = [
-    r'\[config\]',
-    r'\[style\]',
-    r'\[slides\]',
-    r'-{5,}',
-    r'.'
+  # Tokenize the input.  The patterns below are a prioritized list of patterns
+  # to search for.  We peel off the first matching pattern, and then repeat
+  # until nothing is left.
+  patterns = {
+    r'\[config\]': TT.config,
+    r'\[style\]': TT.style,
+    r'\[slides\]': TT.slides,
+    r'-{5,}': TT.slide_boundary,
+    r'\n', TT.character,
+    r'.', TT.character
   ]
+
   tokens = list()
   while x:
     for pattern in patterns:
       match = re.search('^(' + pattern + ')', x)
       if match:
-        token = match.groups(1)
+        token = match.groups(1)[0]
         tokens.append(token)
-        print 'before:', x
         x = x[len(token):]
-        print 'after:', x
         break
 
+  print tokens
 
 
 if __name__ == '__main__':
