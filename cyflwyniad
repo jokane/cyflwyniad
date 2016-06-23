@@ -24,6 +24,7 @@ class TT:
   begin_div = 'begin div'
   end_div = 'end div'
   image = 'image'
+  line_break = 'line break'
 
 # Parser states.
 class S:
@@ -69,6 +70,7 @@ def lex(filename, x):
     (r'\[\[([^\]]*)\]\]', TT.image),
     (r'>>>', TT.begin_center),
     (r'<<<', TT.end_center),
+    (r'\\\\', TT.line_break),
     (r'!([a-zA-Z_]*){', TT.begin_div),
     (r'}', TT.end_div),
     (r'(.)', TT.character)
@@ -150,7 +152,8 @@ def end_div(token):
   pop_tag('div', token)
 
 def include_file(token):
-  print "include", token.text
+  print "+", token.text,
+  sys.stdout.flush()
   process_cy(token.text)
 
 def insert_image(token):
@@ -158,7 +161,10 @@ def insert_image(token):
   (src, attrs) = re.search('^(\S*)\s*(.*)', token.text).groups(0)
   slides_text += "<img src='%s' %s>" % (src, attrs)
 
-
+def insert_line_break(token):
+  global slides_text
+  slides_text += "<br>"
+  
 
 def parse(tokens):
   # Remove the comments first, to make the transition table simpler.
@@ -216,11 +222,12 @@ def parse(tokens):
     (S.in_slide, TT.slide_title) : (end_and_begin_slide, S.in_slide),
 
     # Some HTML shortcuts for slide contents.
-    (S.in_slide, TT.begin_center) : (begin_center, S.in_slide),
-    (S.in_slide, TT.end_center)   : (end_center,   S.in_slide),
-    (S.in_slide, TT.begin_div)    : (begin_div,    S.in_slide),
-    (S.in_slide, TT.end_div)      : (end_div,      S.in_slide),
-    (S.in_slide, TT.image)        : (insert_image, S.in_slide)
+    (S.in_slide, TT.begin_center) : (begin_center,      S.in_slide),
+    (S.in_slide, TT.end_center)   : (end_center,        S.in_slide),
+    (S.in_slide, TT.begin_div)    : (begin_div,         S.in_slide),
+    (S.in_slide, TT.end_div)      : (end_div,           S.in_slide),
+    (S.in_slide, TT.image)        : (insert_image,      S.in_slide),
+    (S.in_slide, TT.line_break)   : (insert_line_break, S.in_slide),
   }
 
   # Actually process the token stream.
@@ -317,8 +324,6 @@ def main():
   if args.input_filename == args.output_filename and args.input_filename != '-':
     complain('Input and output filenames are the same.')
   
-  print >>sys.stderr, args.input_filename, '-->', args.output_filename
-
   # The main outcome will be strings to drop into the final HTML file.  Start
   # with nothing.
   global config_text, style_text, slides_text
@@ -327,7 +332,12 @@ def main():
   slides_text = ""
 
   # Read and execute the input.
+  print args.input_filename,
+  sys.stdout.flush()
   process_cy(args.input_filename)
+
+  print "-->", args.output_filename
+  sys.stdout.flush()
 
   # Build the HTML page based on these components.
   html = render()
