@@ -59,14 +59,14 @@ def lex(filename, x):
   # the token text.
   patterns = [
     (r'(\n+)', TT.newline),
-    (r'(//.*)', TT.comment),
+    # (r'(//.*)', TT.comment),
     (r'\[config\]', TT.config),
     (r'\[style\]', TT.style),
     (r'\[slides\]', TT.slides),
     (r'#include (.*)', TT.include),
     (r'#{5,}\s*([^#]*?)\s*#{5,}', TT.slide_title),
-    (r'-->', TT.begin_center),
-    (r'<--', TT.end_center),
+    (r'>>>', TT.begin_center),
+    (r'<<<', TT.end_center),
     (r'!([a-zA-Z_]*){', TT.begin_div),
     (r'}', TT.end_div),
     (r'(.)', TT.character)
