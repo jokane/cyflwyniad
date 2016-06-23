@@ -90,6 +90,16 @@ def lex(filename, x):
 
   return tokens
 
+# These 
+def push_tag(tag, token):
+  tag_stack.append((tag, token))
+
+def pop_tag(tag, token):
+  (old_tag, old_token) = tag_stack.pop()
+  if old_tag != tag:
+    token.complain("Closing %s tag mismatches with the opening %s tag from %s(%s)." % (tag, old_tag, old_token.filename, old_token.line))
+
+# These functions are generally used as actions in parse() below.
 def append_to_config(token):
   global config_text 
   config_text += token.text
@@ -106,6 +116,7 @@ def begin_slide(token):
   global slides_text
   slides_text += "<section>"
   slides_text += "<h1>" + token.text + "</h1>"
+  push_tag("section", token)
 
 def end_slide():
   global slides_text
@@ -118,18 +129,22 @@ def end_and_begin_slide(token):
 def begin_center(token):
   global slides_text
   slides_text += "<center>"
+  push_tag('center', token)
   
 def end_center(token):
   global slides_text
   slides_text += "</center>"
+  pop_tag('center', token)
 
 def begin_div(token):
   global slides_text
   slides_text += "<div class=%s>" % token.text
+  push_tag('div', token)
 
 def end_div(token):
   global slides_text
   slides_text += "</div>"
+  pop_tag('div', token)
 
 def include_file(token):
   print "include", token.text
@@ -200,6 +215,9 @@ def parse(tokens):
 
   # Actually process the token stream.
   state = S.initial
+
+  global tag_stack
+  tag_stack = list()
   for token in tokens:
     try:
       (func, next_state) = transitions[state, token.tt]
@@ -233,7 +251,6 @@ def render():
   <html>
     <head>
       <link rel='stylesheet' href="reveal.js-3.3.0/css/reveal.css">
-      <link rel='stylesheet' href="reveal.js-3.3.0/css/theme/white.css">
       <style>
         %s
       </style>
