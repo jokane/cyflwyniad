@@ -23,6 +23,7 @@ class TT:
   end_center = 'end_centering'
   begin_div = 'begin div'
   end_div = 'end div'
+  image = 'image'
 
 # Parser states.
 class S:
@@ -65,6 +66,7 @@ def lex(filename, x):
     (r'\[slides\]', TT.slides),
     (r'#include (.*)', TT.include),
     (r'#{5,}\s*([^#]*?)\s*#{5,}', TT.slide_title),
+    (r'\[\[([^\]]*)\]\]', TT.image),
     (r'>>>', TT.begin_center),
     (r'<<<', TT.end_center),
     (r'!([a-zA-Z_]*){', TT.begin_div),
@@ -118,12 +120,13 @@ def begin_slide(token):
   slides_text += "<h1>" + token.text + "</h1>"
   push_tag("section", token)
 
-def end_slide():
+def end_slide(token=None):
   global slides_text
   slides_text += "</section>"
+  pop_tag('section', token)
 
 def end_and_begin_slide(token):
-  end_slide()
+  end_slide(token)
   begin_slide(token)
 
 def begin_center(token):
@@ -149,6 +152,12 @@ def end_div(token):
 def include_file(token):
   print "include", token.text
   process_cy(token.text)
+
+def insert_image(token):
+  global slides_text
+  (src, attrs) = re.search('^(\S*)\s*(.*)', token.text).groups(0)
+  slides_text += "<img src='%s' %s>" % (src, attrs)
+
 
 
 def parse(tokens):
@@ -211,6 +220,7 @@ def parse(tokens):
     (S.in_slide, TT.end_center)   : (end_center,   S.in_slide),
     (S.in_slide, TT.begin_div)    : (begin_div,    S.in_slide),
     (S.in_slide, TT.end_div)      : (end_div,      S.in_slide),
+    (S.in_slide, TT.image)        : (insert_image, S.in_slide)
   }
 
   # Actually process the token stream.
@@ -241,6 +251,10 @@ def parse(tokens):
     complain('Did not expect end-of-file in %s state.' % (state))
   if cleanup_func:
     cleanup_func()
+  
+  if tag_stack:
+    tag, token = tag_stack.pop()
+    token.complain("Unclosed %s tag." % tag)
 
   # All done.  Nothing to return here -- the work is done by appending things
   # to the *_text variables.
