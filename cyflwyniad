@@ -25,6 +25,7 @@ class TT:
   end_div = 'end div'
   image = 'image'
   line_break = 'line break'
+  vertical_space = 'vertical space'
 
 # Parser states.
 class S:
@@ -60,7 +61,6 @@ def lex(filename, x):
   # until nothing is left.  Each pattern can have a () group, which will become
   # the token text.
   patterns = [
-    (r'(\n+)', TT.newline),
     # (r'(//.*)', TT.comment),
     (r'\[config\]', TT.config),
     (r'\[style\]', TT.style),
@@ -71,8 +71,10 @@ def lex(filename, x):
     (r'>>>', TT.begin_center),
     (r'<<<', TT.end_center),
     (r'\\\\', TT.line_break),
+    (r'\.\.\.', TT.vertical_space),
     (r'!([a-zA-Z_]*){', TT.begin_div),
     (r'}', TT.end_div),
+    (r'(\n+)', TT.newline),
     (r'(.)', TT.character)
   ]
 
@@ -133,12 +135,12 @@ def end_and_begin_slide(token):
 
 def begin_center(token):
   global slides_text
-  slides_text += "<center>"
+  slides_text += "<div style='text-align: center'>"
   push_tag('center', token)
   
 def end_center(token):
   global slides_text
-  slides_text += "</center>"
+  slides_text += "</div>"
   pop_tag('center', token)
 
 def begin_div(token):
@@ -164,6 +166,11 @@ def insert_image(token):
 def insert_line_break(token):
   global slides_text
   slides_text += "<br>"
+
+def insert_vertical_space(token):
+  global slides_text
+  slides_text += "<p>&nbsp;</p>";
+
   
 
 def parse(tokens):
@@ -222,12 +229,13 @@ def parse(tokens):
     (S.in_slide, TT.slide_title) : (end_and_begin_slide, S.in_slide),
 
     # Some HTML shortcuts for slide contents.
-    (S.in_slide, TT.begin_center) : (begin_center,      S.in_slide),
-    (S.in_slide, TT.end_center)   : (end_center,        S.in_slide),
-    (S.in_slide, TT.begin_div)    : (begin_div,         S.in_slide),
-    (S.in_slide, TT.end_div)      : (end_div,           S.in_slide),
-    (S.in_slide, TT.image)        : (insert_image,      S.in_slide),
-    (S.in_slide, TT.line_break)   : (insert_line_break, S.in_slide),
+    (S.in_slide, TT.begin_center)   : (begin_center,          S.in_slide),
+    (S.in_slide, TT.end_center)     : (end_center,            S.in_slide),
+    (S.in_slide, TT.begin_div)      : (begin_div,             S.in_slide),
+    (S.in_slide, TT.end_div)        : (end_div,               S.in_slide),
+    (S.in_slide, TT.image)          : (insert_image,          S.in_slide),
+    (S.in_slide, TT.line_break)     : (insert_line_break,     S.in_slide),
+    (S.in_slide, TT.vertical_space) : (insert_vertical_space, S.in_slide),
   }
 
   # Actually process the token stream.
@@ -346,7 +354,7 @@ def main():
   #html = htmlmin.minify(unicode(html),remove_comments=True, reduce_boolean_attributes=True, remove_all_empty_space=True)
 
   # Make the HTML pretty.
-  html = BeautifulSoup(html, 'lxml').prettify()
+  #html = BeautifulSoup(html, 'lxml').prettify()
 
   # Save the rendered page.
   if args.output_filename != '-':
