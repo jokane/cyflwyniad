@@ -122,9 +122,13 @@ def begin_slide(token):
   slides_text += "<section>"
   slides_text += "<h1>" + token.text + "</h1>"
   push_tag("section", token)
+  slides_text += "<center><div class=slide-body>"
+  push_tag("slide-body", token)
 
 def end_slide(token=None):
   global slides_text
+  slides_text += "</div></center>"
+  pop_tag('slide-body', token)
   slides_text += "</section>"
   pop_tag('section', token)
 
