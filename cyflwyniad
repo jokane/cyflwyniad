@@ -19,6 +19,7 @@ class TT:
   newline = 'newline'
   character = 'simple character'
   include = 'include directive'
+  plugin = 'plugin directive'
   begin_center = 'begin_centering'
   end_center = 'end_centering'
   begin_div = 'begin div'
@@ -68,6 +69,7 @@ def lex(filename, x):
     (r'\[style\]', TT.style),
     (r'\[slides\]', TT.slides),
     (r'#include (.*)', TT.include),
+    (r'#plugin (.*)', TT.plugin),
     (r'#{5,}\s*([^#\n]*?)\s*#{5,}', TT.slide_title),
     (r'\[\[([^\]]*)\]\]', TT.media),
     (r'>>>', TT.begin_center),
@@ -172,6 +174,10 @@ def include_file(token):
   sys.stdout.flush()
   process_cy(token.text)
 
+def add_plugin(token):
+  global plugins
+  plugins.append(token.text)
+
 def insert_media(token):
   global slides_text
   (src, attrs) = re.search('^(\S*)\s*(.*)', token.text).groups(0)
@@ -254,12 +260,16 @@ def parse(tokens):
     (S.in_slide, TT.character) : (append_to_slides, S.in_slide),
 
 
-    # Includes are allowed anywhere.
+    # Includes and plugins are allowed anywhere except in a slide.
     (S.initial,  TT.include) : (include_file, S.initial),
     (S.config,   TT.include) : (include_file, S.initial),
     (S.style,    TT.include) : (include_file, S.initial),
     (S.slides,   TT.include) : (include_file, S.initial),
-    (S.in_slide, TT.include) : (include_file, S.initial),
+    (S.initial,  TT.plugin) : (add_plugin, S.initial),
+    (S.config,   TT.plugin) : (add_plugin, S.initial),
+    (S.style,    TT.plugin) : (add_plugin, S.initial),
+    (S.slides,   TT.plugin) : (add_plugin, S.initial),
+
 
     # The slides section should begin with a slide title.
     (S.slides, TT.slide_title) : (begin_slide, S.in_slide),
@@ -333,13 +343,19 @@ def render():
       </div>
     </body>
     <script src="reveal.js-3.3.0/js/reveal.js"></script>
+    %s
     <script>
       Reveal.initialize({
         %s
       });
     </script>
   </html>
-''' % (style_text, slides_text, config_text)
+''' % (
+    style_text,
+    slides_text,
+    "\n".join(map(lambda x: "<script src='reveal.js-3.3.0/plugin/%s'></script>" % x, plugins)),
+    config_text
+  )
 
 
 def process_cy(input_filename):
@@ -375,12 +391,13 @@ def main():
   
   # The main outcome will be strings to drop into the final HTML file.  Start
   # with nothing.
-  global config_text, style_text, slides_text, is_bold, is_ital
+  global config_text, style_text, slides_text, is_bold, is_ital, plugins
   config_text = ""
   style_text = ""
   slides_text = ""
   is_bold = False
   is_ital = False
+  plugins = list()
 
   # Read and execute the input.
   print args.input_filename,
