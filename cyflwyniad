@@ -23,11 +23,13 @@ class TT:
   begin_center = 'begin_centering'
   end_center = 'end_centering'
   begin_div = 'begin div'
-  end_div = 'end div'
+  begin_list = 'begin list'
+  end_group = 'end group'
   media = 'media'
   line_break = 'line break'
   bold = 'bold'
   ital = 'italics'
+  item = 'item'
   vertical_space = 'vertical space'
 
 # Parser states.
@@ -76,8 +78,10 @@ def lex(filename, x):
     (r'<<<', TT.end_center),
     (r'\\\\', TT.line_break),
     (r'\.\.\.', TT.vertical_space),
+    (r'--\s+', TT.item),
     (r'!([a-zA-Z_:=0-9\[\]-]*){', TT.begin_div),
-    (r'}', TT.end_div),
+    (r'@([a-zA-Z]*){', TT.begin_list),
+    (r'}', TT.end_group),
     (r'\*\*', TT.bold),
     (r'__', TT.ital),
     (r'(\n+)', TT.newline),
@@ -164,10 +168,27 @@ def begin_div(token):
   slides_text += "<div class=%s %s>" % (div_class, div_attrs)
   push_tag('div', token)
 
-def end_div(token):
+def begin_list(token):
   global slides_text
-  slides_text += "</div>"
-  pop_tag('div', token)
+  if token.text != 'ul' and token.text != 'ol':
+    token.complain("Unknown list type: %s" % token.text)
+  slides_text += "<%s>" % token.text
+  push_tag(token.text, token)
+
+def end_group(token):
+  global slides_text
+  tag, token = tag_stack[-1]
+  if tag == 'div':
+    pop_tag('div', token)
+    slides_text += "</div>"
+  elif tag == 'ul':
+    pop_tag('ul', token)
+    slides_text += "</ul>"
+  elif tag == 'ol':
+    pop_tag('ol', token)
+    slides_text += "</ol>"
+  else:
+    token.complain("I see a group closure, but the matching tag is %s at %s(%s)" % (tag, token.filename, token.line)) 
 
 def include_file(token):
   print "+", token.text,
@@ -193,6 +214,10 @@ def insert_line_break(token):
 def insert_vertical_space(token):
   global slides_text
   slides_text += "<p>&nbsp;</p>";
+
+def insert_item(token):
+  global slides_text
+  slides_text += "<li>";
 
 def toggle_bold(token):
   global slides_text, is_bold
@@ -241,8 +266,8 @@ def parse(tokens):
 
     # Outside of the slides section, closing braces don't need any special
     # treatment.
-    (S.config, TT.end_div) : (lambda token: append_to_config(Token(TT.character, '}', token.filename, token.line)), S.config),
-    (S.style, TT.end_div)  : (lambda token: append_to_style(Token(TT.character, '}', token.filename, token.line)), S.style),
+    (S.config, TT.end_group) : (lambda token: append_to_config(Token(TT.character, '}', token.filename, token.line)), S.config),
+    (S.style, TT.end_group)  : (lambda token: append_to_style(Token(TT.character, '}', token.filename, token.line)), S.style),
 
     # Raw characters and newlines are usually just added to the appropriate
     # section.
@@ -281,9 +306,11 @@ def parse(tokens):
     (S.in_slide, TT.begin_center)   : (begin_center,          S.in_slide),
     (S.in_slide, TT.end_center)     : (end_center,            S.in_slide),
     (S.in_slide, TT.begin_div)      : (begin_div,             S.in_slide),
-    (S.in_slide, TT.end_div)        : (end_div,               S.in_slide),
+    (S.in_slide, TT.begin_list)     : (begin_list,            S.in_slide),
+    (S.in_slide, TT.end_group)      : (end_group,             S.in_slide),
     (S.in_slide, TT.media)          : (insert_media,          S.in_slide),
     (S.in_slide, TT.line_break)     : (insert_line_break,     S.in_slide),
+    (S.in_slide, TT.item)           : (insert_item,           S.in_slide),
     (S.in_slide, TT.vertical_space) : (insert_vertical_space, S.in_slide),
     (S.in_slide, TT.bold)           : (toggle_bold,           S.in_slide),
     (S.in_slide, TT.ital)           : (toggle_ital,           S.in_slide),
@@ -368,6 +395,7 @@ def process_cy(input_filename):
 
   # Split into tokens.
   tokens = lex(input_filename, x)
+  #print "\n".join(map(str, tokens))
 
   # Convert the token list into the actual HTML text that we want.  This adds
   # to *_text as a side effect.
