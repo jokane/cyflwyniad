@@ -66,13 +66,13 @@ def lex(filename, x):
     (r'\[style\]', TT.style),
     (r'\[slides\]', TT.slides),
     (r'#include (.*)', TT.include),
-    (r'#{5,}\s*([^#]*?)\s*#{5,}', TT.slide_title),
+    (r'#{5,}\s*([^#\n]*?)\s*#{5,}', TT.slide_title),
     (r'\[\[([^\]]*)\]\]', TT.image),
     (r'>>>', TT.begin_center),
     (r'<<<', TT.end_center),
     (r'\\\\', TT.line_break),
     (r'\.\.\.', TT.vertical_space),
-    (r'!([a-zA-Z_]*){', TT.begin_div),
+    (r'!([a-zA-Z_:=0-9\[\]-]*){', TT.begin_div),
     (r'}', TT.end_div),
     (r'(\n+)', TT.newline),
     (r'(.)', TT.character)
@@ -93,7 +93,6 @@ def lex(filename, x):
         line += eaten.count('\n')
         x = x[len(eaten):]
         break
-
   return tokens
 
 # These 
@@ -145,7 +144,14 @@ def end_center(token):
 
 def begin_div(token):
   global slides_text
-  slides_text += "<div class=%s>" % token.text
+  match = re.match(r'(.*)\[(.*)\]', token.text)
+  if match:
+    div_class = match.group(1)
+    div_attrs = match.group(2)
+  else:
+    div_class = token.text
+    div_attrs = ''
+  slides_text += "<div class=%s %s>" % (div_class, div_attrs)
   push_tag('div', token)
 
 def end_div(token):
