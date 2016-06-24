@@ -25,6 +25,8 @@ class TT:
   end_div = 'end div'
   image = 'image'
   line_break = 'line break'
+  bold = 'bold'
+  ital = 'italics'
   vertical_space = 'vertical space'
 
 # Parser states.
@@ -74,6 +76,8 @@ def lex(filename, x):
     (r'\.\.\.', TT.vertical_space),
     (r'!([a-zA-Z_:=0-9\[\]-]*){', TT.begin_div),
     (r'}', TT.end_div),
+    (r'\*\*', TT.bold),
+    (r'__', TT.ital),
     (r'(\n+)', TT.newline),
     (r'(.)', TT.character)
   ]
@@ -181,6 +185,28 @@ def insert_vertical_space(token):
   global slides_text
   slides_text += "<p>&nbsp;</p>";
 
+def toggle_bold(token):
+  global slides_text, is_bold
+  if not is_bold:
+    slides_text += '<b>'
+    push_tag('b', token)
+  else:
+    slides_text += '</b>'
+    pop_tag('b', token)
+  is_bold = not is_bold 
+    
+def toggle_ital(token):
+  global slides_text, is_ital
+  if not is_ital:
+    slides_text += '<i>'
+    push_tag('i', token)
+  else:
+    slides_text += '</i>'
+    pop_tag('i', token)
+  is_ital = not is_ital 
+    
+
+
   
 
 def parse(tokens):
@@ -246,6 +272,8 @@ def parse(tokens):
     (S.in_slide, TT.image)          : (insert_image,          S.in_slide),
     (S.in_slide, TT.line_break)     : (insert_line_break,     S.in_slide),
     (S.in_slide, TT.vertical_space) : (insert_vertical_space, S.in_slide),
+    (S.in_slide, TT.bold)           : (toggle_bold,           S.in_slide),
+    (S.in_slide, TT.ital)           : (toggle_ital,           S.in_slide),
   }
 
   # Actually process the token stream.
@@ -344,10 +372,12 @@ def main():
   
   # The main outcome will be strings to drop into the final HTML file.  Start
   # with nothing.
-  global config_text, style_text, slides_text
+  global config_text, style_text, slides_text, is_bold, is_ital
   config_text = ""
   style_text = ""
   slides_text = ""
+  is_bold = False
+  is_ital = False
 
   # Read and execute the input.
   print args.input_filename,
