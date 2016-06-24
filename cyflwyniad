@@ -23,7 +23,7 @@ class TT:
   end_center = 'end_centering'
   begin_div = 'begin div'
   end_div = 'end div'
-  image = 'image'
+  media = 'media'
   line_break = 'line break'
   bold = 'bold'
   ital = 'italics'
@@ -69,7 +69,7 @@ def lex(filename, x):
     (r'\[slides\]', TT.slides),
     (r'#include (.*)', TT.include),
     (r'#{5,}\s*([^#\n]*?)\s*#{5,}', TT.slide_title),
-    (r'\[\[([^\]]*)\]\]', TT.image),
+    (r'\[\[([^\]]*)\]\]', TT.media),
     (r'>>>', TT.begin_center),
     (r'<<<', TT.end_center),
     (r'\\\\', TT.line_break),
@@ -172,10 +172,13 @@ def include_file(token):
   sys.stdout.flush()
   process_cy(token.text)
 
-def insert_image(token):
+def insert_media(token):
   global slides_text
   (src, attrs) = re.search('^(\S*)\s*(.*)', token.text).groups(0)
-  slides_text += "<img src='%s' %s>" % (src, attrs)
+  if 'mp4' not in src:
+    slides_text += "<img src='%s' %s />" % (src, attrs)
+  else:
+    slides_text += "<video src='%s' %s />" % (src, attrs)
 
 def insert_line_break(token):
   global slides_text
@@ -269,7 +272,7 @@ def parse(tokens):
     (S.in_slide, TT.end_center)     : (end_center,            S.in_slide),
     (S.in_slide, TT.begin_div)      : (begin_div,             S.in_slide),
     (S.in_slide, TT.end_div)        : (end_div,               S.in_slide),
-    (S.in_slide, TT.image)          : (insert_image,          S.in_slide),
+    (S.in_slide, TT.media)          : (insert_media,          S.in_slide),
     (S.in_slide, TT.line_break)     : (insert_line_break,     S.in_slide),
     (S.in_slide, TT.vertical_space) : (insert_vertical_space, S.in_slide),
     (S.in_slide, TT.bold)           : (toggle_bold,           S.in_slide),
