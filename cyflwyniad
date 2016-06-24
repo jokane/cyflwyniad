@@ -30,6 +30,7 @@ class TT:
   bold = 'bold'
   ital = 'italics'
   item = 'item'
+  start = 'start slide'
   vertical_space = 'vertical space'
 
 # Parser states.
@@ -72,14 +73,16 @@ def lex(filename, x):
     (r'\[slides\]', TT.slides),
     (r'#include (.*)', TT.include),
     (r'#plugin (.*)', TT.plugin),
-    (r'#{5,}\s*([^#\n]*?)\s*#{5,}', TT.slide_title),
+    (r'#starthere', TT.start),
+    (r'#start', TT.start),
+    (r'#{3,}\s*([^#\n]*?)\s*#{3,}', TT.slide_title),
     (r'\[\[([^\]]*)\]\]', TT.media),
     (r'>>>', TT.begin_center),
     (r'<<<', TT.end_center),
     (r'\\\\', TT.line_break),
     (r'\.\.\.', TT.vertical_space),
     (r'--\s+', TT.item),
-    (r'!([a-zA-Z_:=0-9\[\]-]*){', TT.begin_div),
+    (r'!([a-zA-Z_:=0-9\[\]+-]*){', TT.begin_div),
     (r'@([a-zA-Z]*){', TT.begin_list),
     (r'}', TT.end_group),
     (r'\*\*', TT.bold),
@@ -128,12 +131,13 @@ def append_to_slides(token):
   slides_text += token.text
 
 def begin_slide(token):
-  global slides_text
+  global slides_text, slide_number
   slides_text += "<section>"
   slides_text += "<h1>" + token.text + "</h1>"
   push_tag("section", token)
   slides_text += "<center><div class=slide-body>"
   push_tag("slide-body", token)
+  slide_number += 1
 
 def end_slide(token=None):
   global slides_text
@@ -141,6 +145,10 @@ def end_slide(token=None):
   pop_tag('slide-body', token)
   slides_text += "</section>"
   pop_tag('section', token)
+
+def set_start_slide(token):
+  global start_slide_number
+  start_slide_number = slide_number
 
 def end_and_begin_slide(token):
   end_slide(token)
@@ -165,7 +173,8 @@ def begin_div(token):
   else:
     div_class = token.text
     div_attrs = ''
-  slides_text += "<div class=%s %s>" % (div_class, div_attrs)
+  div_class = re.sub(r'\+', ' ', div_class)
+  slides_text += "<div class='%s' %s>" % (div_class, div_attrs)
   push_tag('div', token)
 
 def begin_list(token):
@@ -240,7 +249,6 @@ def toggle_ital(token):
   is_ital = not is_ital 
     
 
-
   
 
 def parse(tokens):
@@ -314,6 +322,7 @@ def parse(tokens):
     (S.in_slide, TT.vertical_space) : (insert_vertical_space, S.in_slide),
     (S.in_slide, TT.bold)           : (toggle_bold,           S.in_slide),
     (S.in_slide, TT.ital)           : (toggle_ital,           S.in_slide),
+    (S.in_slide, TT.start)          : (set_start_slide,       S.in_slide)
   }
 
   # Actually process the token stream.
@@ -375,13 +384,15 @@ def render():
       Reveal.initialize({
         %s
       });
+      Reveal.slide( %s );
     </script>
   </html>
 ''' % (
     style_text,
     slides_text,
     "\n".join(map(lambda x: "<script src='reveal.js-3.3.0/plugin/%s'></script>" % x, plugins)),
-    config_text
+    config_text,
+    start_slide_number
   )
 
 
@@ -419,10 +430,12 @@ def main():
   
   # The main outcome will be strings to drop into the final HTML file.  Start
   # with nothing.
-  global config_text, style_text, slides_text, is_bold, is_ital, plugins
+  global config_text, style_text, slides_text, slide_number, start_slide_number, is_bold, is_ital, plugins
   config_text = ""
   style_text = ""
   slides_text = ""
+  slide_number = 0
+  start_slide_number = 0
   is_bold = False
   is_ital = False
   plugins = list()
