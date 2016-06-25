@@ -8,6 +8,7 @@ import re
 import sys
 import htmlmin
 from bs4 import BeautifulSoup
+import urllib2
 
 # Token Types.
 class TT:
@@ -59,6 +60,30 @@ class Token:
 
 def complain(message):
   raise Exception(message)
+
+
+def get_file(url):
+  print "+", url,
+  sys.stdout.flush()
+  if re.search("^http", url):
+    f = urllib2.urlopen(url)
+  else:
+    f = open(url, 'r')
+  return f.read()
+  
+
+def expand(html):
+  html = re.sub("<link rel=['\"]stylesheet['\"] href=['\"]([^'\"]*)['\"]>", lambda match: "<style>" + get_file(match.group(1)) + "</style>", html)
+  html = re.sub("<script src=['\"]([^'\"]*)['\"]>", lambda match: "<script>" + get_file(match.group(1)), html)
+  html = re.sub("@import '([^']*)';", lambda match: get_file(match.group(1)), html)
+  
+
+  return html
+  
+
+
+
+
 
 
 def lex(filename, x):
@@ -386,6 +411,7 @@ def render():
       });
       Reveal.slide( %s );
     </script>
+    <script src="reveal.js-3.3.0/plugin/math/math.js"></script>
   </html>
 ''' % (
     style_text,
@@ -445,9 +471,6 @@ def main():
   sys.stdout.flush()
   process_cy(args.input_filename)
 
-  print "-->", args.output_filename
-  sys.stdout.flush()
-
   # Build the HTML page based on these components.
   html = render()
 
@@ -457,7 +480,13 @@ def main():
   # Make the HTML pretty.
   #html = BeautifulSoup(html, 'lxml').prettify()
 
+  # Try to the page self-contained.
+  #html = expand(html)
+
   # Save the rendered page.
+  print "-->", args.output_filename
+  sys.stdout.flush()
+
   if args.output_filename != '-':
     f = open(args.output_filename, 'w')
   else:
