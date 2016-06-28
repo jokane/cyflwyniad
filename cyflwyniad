@@ -14,6 +14,7 @@ import os
 import hashlib # For turning URLs into well-behaved filenames.
 import time
 import base64
+import subprocess
 
 
 # Token Types.
@@ -501,6 +502,13 @@ def render(source_file):
 
 
 def process_cy(input_filename):
+  # Check spelling.
+  if input_filename != '-':
+    ret = subprocess.call(['ispell', '-p', '.ispell_default', input_filename])
+    if ret !=0:
+      complain(input_filename + ": Failed spell check.")
+
+
   # Read the input file.
   if input_filename != '-':
     f = open(input_filename, 'r')
