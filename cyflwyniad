@@ -9,6 +9,9 @@ import sys
 import htmlmin
 from bs4 import BeautifulSoup
 import urllib2
+import StringIO
+import os
+import hashlib # For turning URLs into well-behaved filenames.
 
 # Token Types.
 class TT:
@@ -66,9 +69,24 @@ def get_file(url):
   print "+", url,
   sys.stdout.flush()
   if re.search("^http", url):
-    f = urllib2.urlopen(url)
+    cache_dir = ".cyflwyniad-cache"
+    if not os.path.exists(cache_dir):
+      os.makedirs(cache_dir)
+    cached_name = os.path.join(cache_dir, hashlib.sha224(url).hexdigest())
+    if os.path.isfile(cached_name):
+      f = open(cached_name, 'r')
+      print "(cached)",
+    else:
+      f = urllib2.urlopen(url)
+      x = f.read()
+      f = open(cached_name, 'w')
+      print >>f, x,
+      f.close()
+      f = StringIO.StringIO(x)
+      print "(web)",
   else:
     f = open(url, 'r')
+    print "(local)",
   return f.read()
   
 
@@ -481,7 +499,7 @@ def main():
   #html = BeautifulSoup(html, 'lxml').prettify()
 
   # Try to the page self-contained.
-  #html = expand(html)
+  html = expand(html)
 
   # Save the rendered page.
   print "-->", args.output_filename
