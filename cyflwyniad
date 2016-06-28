@@ -13,6 +13,7 @@ import StringIO
 import os
 import hashlib # For turning URLs into well-behaved filenames.
 import time
+import base64
 
 
 # Token Types.
@@ -90,13 +91,20 @@ def get_file(url):
     f = open(url, 'r')
     print "(local)",
   return f.read()
-  
+
+def css_url_replace(match):
+  url = match.group(1)
+  print "Expanding CSS URL:", url
+  data = get_file(url)
+  encoded_data = base64.b64encode(data)
+  return "url(data:application/octet-stream;charset=utf-8;base64,"+encoded_data+")"
 
 def expand(html):
   html = re.sub("<link rel=['\"]stylesheet['\"] href=['\"]([^'\"]*)['\"]>", lambda match: "<style>" + get_file(match.group(1)) + "</style>", html)
   html = re.sub("<script src=['\"]([^'\"]*)['\"]>", lambda match: "<script>" + get_file(match.group(1)), html)
   html = re.sub("@import '([^']*)';", lambda match: get_file(match.group(1)), html)
-  
+  html = re.sub(r"url\((http[^\)]*)\)", lambda match: css_url_replace(match), html)
+
 
   return html
   
