@@ -94,7 +94,6 @@ def get_file(url):
 
 def css_url_replace(match):
   url = match.group(1)
-  print "Expanding CSS URL:", url
   data = get_file(url)
   encoded_data = base64.b64encode(data)
   return "url(data:application/octet-stream;charset=utf-8;base64,"+encoded_data+")"
@@ -264,10 +263,26 @@ def add_plugin(token):
 def insert_media(token):
   global slides_text
   (src, attrs) = re.search('^(\S*)\s*(.*)', token.text).groups(0)
-  if 'mp4' not in src:
-    slides_text += "<img src='%s' %s />" % (src, attrs)
+  lower_src = src.lower()
+  if '.png' in lower_src:
+    tag = 'img'
+    mime_type = 'image/png'
+  elif '.jpeg' in lower_src or '.jpg' in lower_src:
+    tag = 'img'
+    mime_type = 'image/jpg'
+  elif '.svg' in lower_src:
+    tag = 'img'
+    mime_type = 'image/svg'
+  elif '.mp4' in lower_src:
+    tag = 'video'
+    mime_type = 'video/mp4'
   else:
-    slides_text += "<video src='%s' %s />" % (src, attrs)
+    token.complain("Can't determine file type for" + src)
+
+  data = get_file(src)
+  encoded_data = base64.b64encode(data)
+
+  slides_text += "<%s src='data:%s;base64,%s' %s />" % (tag, mime_type, encoded_data, attrs)
 
 def insert_line_break(token):
   global slides_text
