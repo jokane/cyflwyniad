@@ -568,7 +568,7 @@ def main():
   # Make the HTML pretty.
   #html = BeautifulSoup(html, 'lxml').prettify()
 
-  # Try to the page self-contained.
+  # Try to make the page self-contained.
   html = expand(html)
 
   # Save the rendered page.
