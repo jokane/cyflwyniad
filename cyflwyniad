@@ -122,7 +122,8 @@ def lex(filename, x):
   # until nothing is left.  Each pattern can have a () group, which will become
   # the token text.
   patterns = [
-    # (r'(//.*)', TT.comment),
+    (r'\\(.)', TT.character),
+    (r'(//.*)', TT.comment),
     (r'\[config\]', TT.config),
     (r'\[style\]', TT.style),
     (r'\[slides\]', TT.slides),
@@ -138,13 +139,13 @@ def lex(filename, x):
     (r'\\\\', TT.line_break),
     (r'\.\.\.', TT.vertical_space),
     (r'--\s+', TT.item),
-    (r'!([a-zA-Z_:=0-9\[\]+-]*){', TT.begin_div),
+    (r'!([a-zA-Z_:=0-9\[\];"\'%+-]*){', TT.begin_div),
     (r'@([a-zA-Z]*){', TT.begin_list),
     (r'}', TT.end_group),
     (r'\*\*', TT.bold),
     (r'__', TT.ital),
     (r'(\n+)', TT.newline),
-    (r'(.)', TT.character)
+    (r'(.)', TT.character),
   ]
 
   line = 1
@@ -286,7 +287,7 @@ def insert_media(token):
     tag = 'video'
     mime_type = 'video/mp4'
   else:
-    token.complain("Can't determine file type for" + src)
+    token.complain("Can't determine file type for " + src)
 
   data = get_file(src)
   encoded_data = base64.b64encode(data)
