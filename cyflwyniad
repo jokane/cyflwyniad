@@ -122,7 +122,7 @@ def lex(filename, x):
   # until nothing is left.  Each pattern can have a () group, which will become
   # the token text.
   patterns = [
-    (r'\\(.)', TT.character),
+    (r'\\(\})', TT.character),
     (r'(//.*)', TT.comment),
     (r'\[config\]', TT.config),
     (r'\[style\]', TT.style),
