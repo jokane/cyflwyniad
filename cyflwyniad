@@ -292,7 +292,8 @@ def insert_media(token):
   data = get_file(src)
   encoded_data = base64.b64encode(data)
 
-  slides_text += "<%s src='data:%s;base64,%s' %s />" % (tag, mime_type, encoded_data, attrs)
+  #slides_text += "<%s src='data:%s;base64,%s' %s />" % (tag, mime_type, encoded_data, attrs)
+  slides_text += "<%s src='%s' %s></%s>" % (tag, src, attrs, tag)
 
 def insert_line_break(token):
   global slides_text
