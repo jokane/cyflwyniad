@@ -148,11 +148,15 @@ def lex(filename, x):
     (r'(.)', TT.character),
   ]
 
+  # Pre-compile the patterns.  (Though this seems not to make much difference;
+  # the re module seems to cache the most recent 100 patterns anyway.)
+  patterns = map(lambda x: (re.compile('^' + x[0]), x[1]), patterns)
+
   line = 1
   tokens = list()
   while x:
     for (pattern, tt) in patterns:
-      match = re.search('^' + pattern, x)
+      match = pattern.search(x)
       if match:
         eaten = match.group(0)
         try:
