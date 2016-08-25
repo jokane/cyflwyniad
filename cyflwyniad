@@ -42,6 +42,7 @@ class TT:
   start = 'start slide'
   vertical_space = 'vertical space'
   inline_math = 'inline math delimiter'
+  em_dash = 'em dash'
 
 # Parser states.
 class S:
@@ -148,6 +149,7 @@ def lex(filename, x):
     (r'__', TT.ital),
     (r'(\n+)', TT.newline),
     (r'(\$)', TT.inline_math),
+    (r'(---)', TT.em_dash),
     (r'(.)', TT.character),
   ]
 
@@ -311,6 +313,10 @@ def insert_vertical_space(token):
   global slides_text
   slides_text += "<p>&nbsp;</p>";
 
+def insert_em_dash(token):
+  global slides_text
+  slides_text += "&mdash;";
+
 def insert_item(token):
   global slides_text
   slides_text += "<li>";
@@ -438,8 +444,10 @@ def parse(tokens):
     (S.in_slide, TT.line_break)     : (insert_line_break,     S.in_slide),
     (S.in_slide, TT.item)           : (insert_item,           S.in_slide),
     (S.in_slide, TT.vertical_space) : (insert_vertical_space, S.in_slide),
+    (S.in_slide, TT.em_dash)        : (insert_em_dash,        S.in_slide),
     (S.in_slide, TT.bold)           : (toggle_bold,           S.in_slide),
     (S.in_slide, TT.ital)           : (toggle_ital,           S.in_slide),
+
     (S.in_slide, TT.start)          : (set_start_slide,       S.in_slide)
   }
 
