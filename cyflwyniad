@@ -13,6 +13,8 @@ import hashlib # For turning URLs into well-behaved filenames.
 import time
 import base64
 import subprocess
+import mimetypes
+import shutil
 
 
 # Token Types.
@@ -96,6 +98,33 @@ def complain(message):
 #     print "(local)",
 #   return f.read()
 
+def download_if_needed(url):
+# Make sure that a local or cached copy of the requested URL is available, and
+# return its path.
+
+  # If it's a local file, we don't need to do anything.
+  if not re.search('^http(s)?:', url):
+    return url
+
+  # If it's a URL, download it to our cache.
+  cache_dir = ".cyflwyniad-cache"
+  mkdir_if_needed(cache_dir)
+  extension = mimetypes.guess_type(url)[0].split('/')[1]
+  cached_name = os.path.join(cache_dir, hashlib.sha224(url).hexdigest() + '.' + extension)
+
+  if not os.path.isfile(cached_name):
+    print url, '-->', '(cache)'
+    f = urllib2.urlopen(url)
+    x = f.read()
+    f = open(cached_name, 'w')
+    print >>f, x,
+    f.close()
+  return cached_name
+
+def mkdir_if_needed(d):
+  if not os.path.exists(d):
+    os.makedirs(d)
+
 def massage_url(url):
 # Return a URL to use in place of the given one.
 # There are three options:
@@ -104,31 +133,35 @@ def massage_url(url):
 # - If both onefile is given, download the file and convert it to
 # a data URL.
 # - If neither offline nor onefile are given, just return the URL untouched.
-  global args
+  global args, files_dir
   if args.offline:
-    complain("Offline mode is broken today.")
+    cached_name = download_if_needed(url)
+    local_name = os.path.join(files_dir, os.path.basename(cached_name))
+    mkdir_if_needed(os.path.dirname(local_name))
+    print cached_name, "-->", local_name
+    shutil.copy2(cached_name, local_name)
+    return local_name
   elif args.onefile:
     complain("Onefile mode is broken today.")
-  # (src, attrs) = re.search('^(\S*)\s*(.*)', token.text).groups(0)
-  # lower_src = src.lower()
-  # if '.png' in lower_src:
-  #   tag = 'img'
-  #   mime_type = 'image/png'
-  # elif '.jpeg' in lower_src or '.jpg' in lower_src:
-  #   tag = 'img'
-  #   mime_type = 'image/jpg'
-  # elif '.svg' in lower_src:
-  #   tag = 'img'
-  #   mime_type = 'image/svg+xml'
-  # elif '.mp4' in lower_src:
-  #   tag = 'video'
-  #   mime_type = 'video/mp4'
-  # else:
-  #   token.complain("Can't determine file type for " + src)
-  # encoded_data = base64.b64encode(data)
+    # (src, attrs) = re.search('^(\S*)\s*(.*)', token.text).groups(0)
+    # lower_src = src.lower()
+    # if '.png' in lower_src:
+    #   tag = 'img'
+    #   mime_type = 'image/png'
+    # elif '.jpeg' in lower_src or '.jpg' in lower_src:
+    #   tag = 'img'
+    #   mime_type = 'image/jpg'
+    # elif '.svg' in lower_src:
+    #   tag = 'img'
+    #   mime_type = 'image/svg+xml'
+    # elif '.mp4' in lower_src:
+    #   tag = 'video'
+    #   mime_type = 'video/mp4'
+    # else:
+    #   token.complain("Can't determine file type for " + src)
+    # encoded_data = base64.b64encode(data)
 
-  # #slides_text += "<%s src='data:%s;base64,%s' %s />" % (tag, mime_type, encoded_data, attrs)
-
+    # #slides_text += "<%s src='data:%s;base64,%s' %s />" % (tag, mime_type, encoded_data, attrs)
   else:
     return url
 
@@ -307,7 +340,7 @@ def end_group(token):
     token.complain("I see a group closure, but the matching tag is %s at %s(%s)" % (tag, token.filename, token.line)) 
 
 def include_file(token):
-  print "+", token.text,
+  print "+", token.text
   sys.stdout.flush()
   process_cy(token.text)
 
@@ -330,7 +363,7 @@ def insert_media(token):
     tag = 'video'
   else:
     token.complain("Can't determine whether " + src + " is an image or a video.")
-  slides_text += "<%s src='%s' %s></%s>" % (tag, src, attrs, tag)
+  slides_text += "<%s src='%s' %s></%s>" % (tag, url, attrs, tag)
 
 def insert_line_break(token):
   global slides_text
@@ -611,6 +644,19 @@ def main():
       args.output_filename = '-'
   if args.input_filename == args.output_filename and args.input_filename != '-':
     complain('Input and output filenames are the same.')
+  args.job_name = re.sub('\.cy$', '', args.input_filename)
+
+  # For offline mode, we'll want an empty directory for all of the files that go with the HTML.
+  if args.offline:
+    global files_dir
+    files_dir = args.job_name + "-files"
+    if not os.path.exists(files_dir):
+      os.makedirs(files_dir)
+    else:
+      for f in os.listdir(files_dir):
+        x = os.path.join(files_dir, f)
+        print x, "-->", '(removed)'
+        os.unlink(x)
   
   # The main outcome will be strings to drop into the final HTML file.  Start
   # with nothing.
@@ -626,8 +672,7 @@ def main():
   scripts = list()
 
   # Read and execute the input.
-  print args.input_filename,
-  sys.stdout.flush()
+  print args.input_filename, '-->', '(.)(.)(.)', "-->", args.output_filename
   process_cy(args.input_filename)
 
   # Build the HTML page based on these components.
@@ -637,7 +682,7 @@ def main():
   #html = expand(html)
 
   # Save the rendered page.
-  print "-->", args.output_filename
+  print '(.)(.)(.)', "-->", args.output_filename
   sys.stdout.flush()
 
   if args.output_filename != '-':
