@@ -1,1 +1,4 @@
 .cyflwyniad-cache/
+*.html
+*.bak
+*.sw?
