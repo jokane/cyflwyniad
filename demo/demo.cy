@@ -1,7 +1,18 @@
 [style]
 
+@import 'https://fonts.googleapis.com/css?family=Baloo+Paaji';
+@import 'https://fonts.googleapis.com/css?family=Bitter';
+
+.reveal h1 {
+  font-family: 'Baloo Paaji';
+  font-size: 30;
+  text-align:left;
+}
+
 .reveal .slide-body {
   text-align: left;
+  font-family: 'Bitter';
+  font-size: 20;
 }
 
 .reveal .ib {
@@ -10,7 +21,7 @@
 
 [script]
 
-#script https://rawgit.com/pkra/MathJax-single-file/master/dist/TeXSVG/MathJax.js
+#script http://rawgit.com/pkra/MathJax-single-file/master/dist/TeXSVG/MathJax.js
 
 // Below is the part of reveal.js's math plugin that does *not* deal with
 // loading the MathJax library.
@@ -48,12 +59,12 @@ Reveal.addEventListener( 'slidechanged', function( event ) {
 Be careful about spacing:
 >>>
   !ib{
-      [[test.png]] \\
-      [[test.png]] 
+      [[figs/test.png]] \\
+      [[figs/test.png]] 
   }
   !ib{
-    [[test.png]]\\
-    [[test.png]] 
+    [[figs/test.png]]\\
+    [[figs/test.png]] 
   }
 <<<
 

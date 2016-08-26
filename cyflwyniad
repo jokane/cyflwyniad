@@ -74,36 +74,24 @@ class Token:
 def complain(message):
   raise Exception(message)
 
-def to_from(to, fr):
+def to_from(reason, to, fr):
   if cache_dir in to: to = '(cache)'
   if cache_dir in fr: fr = '(cache)'
-  print to, '-->', fr
+  print "[%-20s] %30s --> %-30s" % (reason, to, fr)
 
-# def get_file(url):
-#   print "+", url,
-#   if re.search("^http", url):
-#     if not os.path.exists(cache_dir):
-#       os.makedirs(cache_dir)
-#     cached_name = os.path.join(cache_dir, hashlib.sha224(url).hexdigest())
-#     if os.path.isfile(cached_name):
-#       f = open(cached_name, 'r')
-#       print "(cached)",
-#     else:
-#       f = urllib2.urlopen(url)
-#       x = f.read()
-#       f = open(cached_name, 'w')
-#       print >>f, x,
-#       f.close()
-#       f = StringIO.StringIO(x)
-#       print "(web)",
-#   else:
-#     f = open(url, 'r')
-#     print "(local)",
-#   return f.read()
 
-def download_if_needed(url):
+def mkdir_if_needed(d):
+  if not os.path.exists(d):
+    os.makedirs(d)
+
+def get_file(url, mime_type):
+  local_name = download_if_needed(url, mime_type)
+  to_from('', local_name, '[...]')
+  return open(local_name, 'r').read()
+
+def download_if_needed(url, mime_type):
 # Make sure that a local or cached copy of the requested URL is available, and
-# return its path.
+# return its path.  If mime_type is None, guess.
 
   # If it's a local file, we don't need to do anything.
   if not re.search('^http(s)?:', url):
@@ -111,11 +99,30 @@ def download_if_needed(url):
 
   # If it's a URL, download it to our cache.
   mkdir_if_needed(cache_dir)
-  extension = mimetypes.guess_type(url)[0].split('/')[1]
-  cached_name = os.path.join(cache_dir, hashlib.sha224(url).hexdigest()[:8] + '.' + extension)
+  if mime_type:
+    # MIME type was given.  Use the second part as the file extension.
+    extension = '.' + mime_type.split('/')[1]
+  else:
+    # No MIME type given.  Can we guess?
+    mime_type  = mimetypes.guess_type(url)[0]
+
+    if mime_type:
+      # Yes.  Use the second part as the file extension.
+      extension = '.' + mime_type.split('/')[1]
+    else:
+      # No.  Is there an extension on the filename?
+      match = re.match(r'\.(.*)$', url)
+      if match:
+        # Yes.  Use it.
+        extension = '.' + match.group(1)
+      else:
+        # No.  Give up.
+        extension = ''
+
+  cached_name = os.path.join(cache_dir, hashlib.sha224(url).hexdigest()[:8] + extension)
 
   if not os.path.isfile(cached_name):
-    to_from(url, cached_name)
+    to_from('', url, cached_name)
     f = urllib2.urlopen(url)
     x = f.read()
     f = open(cached_name, 'w')
@@ -123,28 +130,32 @@ def download_if_needed(url):
     f.close()
   return cached_name
 
-def mkdir_if_needed(d):
-  if not os.path.exists(d):
-    os.makedirs(d)
-
-def massage_url(url):
+def massage_url(url, mime_type):
 # Return a URL to use in place of the given one.
 # There are three options:
 # - If offline is given, download the file to a local cache,
 # and return a relative link to that.
-# - If both onefile is given, download the file and convert it to
+# - If onefile is given, download the file and convert it to
 # a data URL.
 # - If neither offline nor onefile are given, just return the URL untouched.
   global args, files_dir
   if args.offline:
-    cached_name = download_if_needed(url)
+    cached_name = download_if_needed(url, mime_type)
     local_name = os.path.join(files_dir, os.path.basename(cached_name))
     mkdir_if_needed(os.path.dirname(local_name))
-    to_from(cached_name, local_name)
+    to_from('', cached_name, local_name)
     shutil.copy2(cached_name, local_name)
     return local_name
+
   elif args.onefile:
-    complain("Onefile mode is broken today.")
+    cached_name = download_if_needed(url, mime_type)
+    to_from('', cached_name, '[...]')
+    raw_contents = open(cached_name, 'r').read()
+    base64_contents = base64.b64encode(raw_contents)
+    mime_type = mimetypes.guess_type(url)[0]
+    data_url = "data:%s;base64,%s" % (mime_type, base64_contents)
+    return data_url
+
     # (src, attrs) = re.search('^(\S*)\s*(.*)', token.text).groups(0)
     # lower_src = src.lower()
     # if '.png' in lower_src:
@@ -163,26 +174,97 @@ def massage_url(url):
     #   token.complain("Can't determine file type for " + src)
     # encoded_data = base64.b64encode(data)
 
-    # #slides_text += "<%s src='data:%s;base64,%s' %s />" % (tag, mime_type, encoded_data, attrs)
+    # #slides_text += "<%s src='' %s />" % (tag, mime_type, encoded_data, attrs)
   else:
     return url
 
 
-def css_url_replace(match):
-  url = match.group(1)
-  data = get_file(url)
-  encoded_data = base64.b64encode(data)
-  return "url(data:application/octet-stream;charset=utf-8;base64,"+encoded_data+")"
+def expand_offline_file(filename):
+  to_from('offline expansion', filename, '[...]')
 
-def expand(html):
-  html = re.sub("<link rel=['\"]stylesheet['\"] href=['\"]([^'\"]*)['\"]>", lambda match: "<style>" + massage_url(match.group(1)) + "</style>", html)
-  html = re.sub("<script src=['\"]([^'\"]*)['\"]>", lambda match: "<script>" + massage_url(match.group(1)), html)
-  html = re.sub("@import '([^']*)';", lambda match: massage_url(match.group(1)), html)
-  html = re.sub(r"url\((http[^\)]*)\)", lambda match: css_url_replace(match), html)
+  # A list of dependencies that will also need to be checked.  We'll return this.
+  deps = list()
+
+  # We'll need to remove this from any dependencies, so that those relative
+  # URLs work correctly.
+  current_dir = os.path.split(filename)[0] + '/'
+
+  text = open(filename, 'r').read()
+  orig = text
+
+  def match_css(match):
+    url = massage_url(match.group(1), 'text/css')
+    url = re.sub('^' + current_dir, '', url)
+    deps.append(url)
+    return "<link rel='stylesheet' href='%s'>" % url
+
+  text = re.sub(
+    "<link rel=['\"]stylesheet['\"] href=['\"]([^'\"]*)['\"]>",
+    match_css,
+    text
+  )
+
+  def match_script(match):
+    url = massage_url(match.group(1), 'application/javascript')
+    url = re.sub('^' + current_dir, '', url)
+    deps.append(url)
+    return "<script src='%s'>" % url
+
+  text = re.sub(
+    "<script src=['\"]([^'\"]*)['\"]>",
+    match_script,
+    text
+  )
 
 
-  return html
+  def match_css_import(match):
+    url = massage_url(match.group(1), 'text/css')
+    url = re.sub('^' + current_dir, '', url)
+    deps.append(url)
+    return "@import '%s';" % url
+
+  text = re.sub(
+    "@import '([^']*)';",
+    match_css_import,
+    text
+  )
+
+
+  def match_css_url(match):
+    url = massage_url(match.group(1), None)
+    url = re.sub('^' + current_dir, '', url)
+    return "url(%s)" % url
+
+  text = re.sub(
+    r"url\((http[^\)]*)\)",
+    match_css_url,
+    text
+  )
+
+  # If the text changed at all, write it back to disk.
+  if orig != text:
+    to_from('offline expansion', '[...]', filename)
+    print >>open(filename, 'w'), text
+
+  return deps
   
+def expand_onefile_text(html):
+# Look for references to other files, and insert each one directly instead.
+
+  # Sometimes we insert the actual text.
+  html = re.sub("<link rel=['\"]stylesheet['\"] href=['\"]([^'\"]*)['\"]>", lambda match: "<style>" + get_file(match.group(1), 'text/css') + "</style>", html)
+  html = re.sub("<script src=['\"]([^'\"]*)['\"]>", lambda match: "<script>" + get_file(match.group(1), 'application/javascript'), html)
+  html = re.sub("@import '([^']*)';", lambda match: get_file(match.group(1), 'text/css'), html)
+
+  # Sometimes we need a data: URL.
+  def css_url_replace(match):
+    url = match.group(1)
+    data = get_file(url, None)
+    encoded_data = base64.b64encode(data)
+    return "url(data:application/octet-stream;charset=utf-8;base64,"+encoded_data+")"
+
+  html = re.sub(r"url\((http[^\)]*)\)", lambda match: css_url_replace(match), html)
+  return html
 
 
 
@@ -196,7 +278,7 @@ def lex(filename, x):
   # the token text.
   patterns = [
     (r'\\(\})', TT.character),
-    (r'(//.*)', TT.comment),
+    #(r'(//.*)', TT.comment),
     (r'\[config\]', TT.config),
     (r'\[style\]', TT.style),
     (r'\[slides\]', TT.slides),
@@ -342,7 +424,7 @@ def end_group(token):
     token.complain("I see a group closure, but the matching tag is %s at %s(%s)" % (tag, token.filename, token.line)) 
 
 def include_file(token):
-  to_from(token.text, '[...]')
+  to_from('include', token.text, '[...]')
   process_cy(token.text)
 
 def add_external_script(token):
@@ -352,7 +434,7 @@ def add_external_script(token):
 def insert_media(token):
   global slides_text
   (src, attrs) = re.search('^(\S*)\s*(.*)', token.text).groups(0)
-  url = massage_url(src)
+  url = massage_url(src, None)
   lower_src = src.lower()
   if '.png' in lower_src:
     tag = 'img'
@@ -566,7 +648,7 @@ def render(source_file):
   <!-- Generated by cyflwyniad from %s on %s. -->
   <html>
     <head>
-      <link rel='stylesheet' href="https://rawgit.com/hakimel/reveal.js/3.3.0/css/reveal.css">
+      <link rel='stylesheet' href="http://rawgit.com/hakimel/reveal.js/3.3.0/css/reveal.css">
       <style>
         %s
       </style>
@@ -578,7 +660,7 @@ def render(source_file):
         </div>
       </div>
     </body>
-    <script src="https://rawgit.com/hakimel/reveal.js/3.3.0/js/reveal.js"></script>
+    <script src="http://rawgit.com/hakimel/reveal.js/3.3.0/js/reveal.js"></script>
     %s
     <script>
       
@@ -656,7 +738,7 @@ def main():
     else:
       for f in os.listdir(files_dir):
         x = os.path.join(files_dir, f)
-        to_from(x, '(removed)')
+        to_from('clean offline files', x, '(removed)')
         os.unlink(x)
   
   # The main outcome will be strings to drop into the final HTML file.  Start
@@ -673,24 +755,38 @@ def main():
   scripts = list()
 
   # Read and execute the input.
-  to_from(args.input_filename, '[...]')
+  to_from('main input', args.input_filename, '[...]')
   process_cy(args.input_filename)
 
   # Build the HTML page based on these components.
   html = render(args.input_filename)
 
-  # Try to make the page self-contained.
-  #html = expand(html)
+  # If we're in onefile mode, try to make the page self-contained.
+  if args.onefile:
+    html = expand_onefile_text(html)
 
   # Save the rendered page.
-  to_from('[...]', args.output_filename)
+  to_from('save rendered output', '[...]', args.output_filename)
 
   if args.output_filename != '-':
     f = open(args.output_filename, 'w')
   else:
     f = sys.stdout
   print >>f, html
+  if args.output_filename != '-':
+    f.close()
 
+
+  # If we're in offline mode, try to make the page usable without any
+  # connection.  This is trickier than the onefile case, because we need to
+  # open and modify included files as well.  Note that we're writing the file
+  # and reading it back in right away.  This seems reasonable to keep from
+  # treating the main HTML document in any special way.
+  if args.offline:
+    q = [args.output_filename]
+    while q:
+      filename = q.pop()
+      q = q + expand_offline_file(filename)
 
 
 if __name__ == '__main__':
