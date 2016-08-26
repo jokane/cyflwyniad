@@ -75,6 +75,8 @@ def complain(message):
   raise Exception(message)
 
 def to_from(reason, to, fr):
+  if not to: to = '[...]'
+  if not fr: fr = '[...]'
   if cache_dir in to: to = '(cache)'
   if cache_dir in fr: fr = '(cache)'
   print "[%-20s] %30s --> %-30s" % (reason, to, fr)
@@ -149,7 +151,7 @@ def massage_url(url, mime_type, reason):
 
   elif args.onefile:
     cached_name = download_if_needed(url, mime_type, reason)
-    to_from(reason, cached_name, '[...]')
+    to_from(reason, cached_name, None)
     raw_contents = open(cached_name, 'r').read()
     base64_contents = base64.b64encode(raw_contents)
     mime_type = mimetypes.guess_type(url)[0]
@@ -180,7 +182,7 @@ def massage_url(url, mime_type, reason):
 
 
 def expand_offline_file(filename):
-  to_from('offline expansion', filename, '[...]')
+  to_from('offline expansion', filename, None)
 
   # A list of dependencies that will also need to be checked.  We'll return this.
   deps = list()
@@ -243,7 +245,7 @@ def expand_offline_file(filename):
 
   # If the text changed at all, write it back to disk.
   if orig != text:
-    to_from('offline expansion', '[...]', filename)
+    to_from('offline expansion', None, filename)
     print >>open(filename, 'w'), text
 
   return deps
@@ -424,7 +426,7 @@ def end_group(token):
     token.complain("I see a group closure, but the matching tag is %s at %s(%s)" % (tag, token.filename, token.line)) 
 
 def include_file(token):
-  to_from('include', token.text, '[...]')
+  to_from('include', token.text, None)
   process_cy(token.text)
 
 def add_external_script(token):
@@ -755,7 +757,7 @@ def main():
   scripts = list()
 
   # Read and execute the input.
-  to_from('main input', args.input_filename, '[...]')
+  to_from('main input', args.input_filename, None)
   process_cy(args.input_filename)
 
   # Build the HTML page based on these components.
@@ -766,7 +768,7 @@ def main():
     html = expand_onefile_text(html)
 
   # Save the rendered page.
-  to_from('save rendered output', '[...]', args.output_filename)
+  to_from('save rendered output', None, args.output_filename)
 
   if args.output_filename != '-':
     f = open(args.output_filename, 'w')
