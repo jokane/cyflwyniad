@@ -84,12 +84,12 @@ def mkdir_if_needed(d):
   if not os.path.exists(d):
     os.makedirs(d)
 
-def get_file(url, mime_type):
-  local_name = download_if_needed(url, mime_type)
-  to_from('', local_name, '[...]')
+def get_file(url, mime_type, reason):
+  local_name = download_if_needed(url, mime_type, reason)
+  to_from(reason, local_name, '[...]')
   return open(local_name, 'r').read()
 
-def download_if_needed(url, mime_type):
+def download_if_needed(url, mime_type, reason):
 # Make sure that a local or cached copy of the requested URL is available, and
 # return its path.  If mime_type is None, guess.
 
@@ -122,7 +122,7 @@ def download_if_needed(url, mime_type):
   cached_name = os.path.join(cache_dir, hashlib.sha224(url).hexdigest()[:8] + extension)
 
   if not os.path.isfile(cached_name):
-    to_from('', url, cached_name)
+    to_from(reason, url, cached_name)
     f = urllib2.urlopen(url)
     x = f.read()
     f = open(cached_name, 'w')
@@ -130,7 +130,7 @@ def download_if_needed(url, mime_type):
     f.close()
   return cached_name
 
-def massage_url(url, mime_type):
+def massage_url(url, mime_type, reason):
 # Return a URL to use in place of the given one.
 # There are three options:
 # - If offline is given, download the file to a local cache,
@@ -140,16 +140,16 @@ def massage_url(url, mime_type):
 # - If neither offline nor onefile are given, just return the URL untouched.
   global args, files_dir
   if args.offline:
-    cached_name = download_if_needed(url, mime_type)
+    cached_name = download_if_needed(url, mime_type, reason)
     local_name = os.path.join(files_dir, os.path.basename(cached_name))
     mkdir_if_needed(os.path.dirname(local_name))
-    to_from('', cached_name, local_name)
+    to_from(reason, cached_name, local_name)
     shutil.copy2(cached_name, local_name)
     return local_name
 
   elif args.onefile:
-    cached_name = download_if_needed(url, mime_type)
-    to_from('', cached_name, '[...]')
+    cached_name = download_if_needed(url, mime_type, reason)
+    to_from(reason, cached_name, '[...]')
     raw_contents = open(cached_name, 'r').read()
     base64_contents = base64.b64encode(raw_contents)
     mime_type = mimetypes.guess_type(url)[0]
@@ -193,7 +193,7 @@ def expand_offline_file(filename):
   orig = text
 
   def match_css(match):
-    url = massage_url(match.group(1), 'text/css')
+    url = massage_url(match.group(1), 'text/css', 'offline expansion')
     url = re.sub('^' + current_dir, '', url)
     deps.append(url)
     return "<link rel='stylesheet' href='%s'>" % url
@@ -205,7 +205,7 @@ def expand_offline_file(filename):
   )
 
   def match_script(match):
-    url = massage_url(match.group(1), 'application/javascript')
+    url = massage_url(match.group(1), 'application/javascript', 'offline expansion')
     url = re.sub('^' + current_dir, '', url)
     deps.append(url)
     return "<script src='%s'>" % url
@@ -218,7 +218,7 @@ def expand_offline_file(filename):
 
 
   def match_css_import(match):
-    url = massage_url(match.group(1), 'text/css')
+    url = massage_url(match.group(1), 'text/css', 'offline expansion')
     url = re.sub('^' + current_dir, '', url)
     deps.append(url)
     return "@import '%s';" % url
@@ -231,7 +231,7 @@ def expand_offline_file(filename):
 
 
   def match_css_url(match):
-    url = massage_url(match.group(1), None)
+    url = massage_url(match.group(1), None, 'offline expansion')
     url = re.sub('^' + current_dir, '', url)
     return "url(%s)" % url
 
@@ -252,14 +252,14 @@ def expand_onefile_text(html):
 # Look for references to other files, and insert each one directly instead.
 
   # Sometimes we insert the actual text.
-  html = re.sub("<link rel=['\"]stylesheet['\"] href=['\"]([^'\"]*)['\"]>", lambda match: "<style>" + get_file(match.group(1), 'text/css') + "</style>", html)
-  html = re.sub("<script src=['\"]([^'\"]*)['\"]>", lambda match: "<script>" + get_file(match.group(1), 'application/javascript'), html)
-  html = re.sub("@import '([^']*)';", lambda match: get_file(match.group(1), 'text/css'), html)
+  html = re.sub("<link rel=['\"]stylesheet['\"] href=['\"]([^'\"]*)['\"]>", lambda match: "<style>" + get_file(match.group(1), 'text/css', 'onefile expansion') + "</style>", html)
+  html = re.sub("<script src=['\"]([^'\"]*)['\"]>", lambda match: "<script>" + get_file(match.group(1), 'application/javascript', 'onefile expansion'), html)
+  html = re.sub("@import '([^']*)';", lambda match: get_file(match.group(1), 'text/css', 'onefile expansion'), html)
 
   # Sometimes we need a data: URL.
   def css_url_replace(match):
     url = match.group(1)
-    data = get_file(url, None)
+    data = get_file(url, None, 'onefile expansion')
     encoded_data = base64.b64encode(data)
     return "url(data:application/octet-stream;charset=utf-8;base64,"+encoded_data+")"
 
@@ -434,7 +434,7 @@ def add_external_script(token):
 def insert_media(token):
   global slides_text
   (src, attrs) = re.search('^(\S*)\s*(.*)', token.text).groups(0)
-  url = massage_url(src, None)
+  url = massage_url(src, None, 'media')
   lower_src = src.lower()
   if '.png' in lower_src:
     tag = 'img'
