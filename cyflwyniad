@@ -16,6 +16,7 @@ import subprocess
 import mimetypes
 import shutil
 
+cache_dir = ".cyflwyniad-cache"
 
 # Token Types.
 class TT:
@@ -73,12 +74,14 @@ class Token:
 def complain(message):
   raise Exception(message)
 
+def to_from(to, fr):
+  if cache_dir in to: to = '(cache)'
+  if cache_dir in fr: fr = '(cache)'
+  print to, '-->', fr
 
 # def get_file(url):
 #   print "+", url,
-#   sys.stdout.flush()
 #   if re.search("^http", url):
-#     cache_dir = ".cyflwyniad-cache"
 #     if not os.path.exists(cache_dir):
 #       os.makedirs(cache_dir)
 #     cached_name = os.path.join(cache_dir, hashlib.sha224(url).hexdigest())
@@ -107,13 +110,12 @@ def download_if_needed(url):
     return url
 
   # If it's a URL, download it to our cache.
-  cache_dir = ".cyflwyniad-cache"
   mkdir_if_needed(cache_dir)
   extension = mimetypes.guess_type(url)[0].split('/')[1]
-  cached_name = os.path.join(cache_dir, hashlib.sha224(url).hexdigest() + '.' + extension)
+  cached_name = os.path.join(cache_dir, hashlib.sha224(url).hexdigest()[:8] + '.' + extension)
 
   if not os.path.isfile(cached_name):
-    print url, '-->', '(cache)'
+    to_from(url, cached_name)
     f = urllib2.urlopen(url)
     x = f.read()
     f = open(cached_name, 'w')
@@ -138,7 +140,7 @@ def massage_url(url):
     cached_name = download_if_needed(url)
     local_name = os.path.join(files_dir, os.path.basename(cached_name))
     mkdir_if_needed(os.path.dirname(local_name))
-    print cached_name, "-->", local_name
+    to_from(cached_name, local_name)
     shutil.copy2(cached_name, local_name)
     return local_name
   elif args.onefile:
@@ -340,8 +342,7 @@ def end_group(token):
     token.complain("I see a group closure, but the matching tag is %s at %s(%s)" % (tag, token.filename, token.line)) 
 
 def include_file(token):
-  print "+", token.text
-  sys.stdout.flush()
+  to_from(token.text, '[...]')
   process_cy(token.text)
 
 def add_external_script(token):
@@ -655,7 +656,7 @@ def main():
     else:
       for f in os.listdir(files_dir):
         x = os.path.join(files_dir, f)
-        print x, "-->", '(removed)'
+        to_from(x, '(removed)')
         os.unlink(x)
   
   # The main outcome will be strings to drop into the final HTML file.  Start
@@ -672,7 +673,7 @@ def main():
   scripts = list()
 
   # Read and execute the input.
-  print args.input_filename, '-->', '(.)(.)(.)', "-->", args.output_filename
+  to_from(args.input_filename, '[...]')
   process_cy(args.input_filename)
 
   # Build the HTML page based on these components.
@@ -682,8 +683,7 @@ def main():
   #html = expand(html)
 
   # Save the rendered page.
-  print '(.)(.)(.)', "-->", args.output_filename
-  sys.stdout.flush()
+  to_from('[...]', args.output_filename)
 
   if args.output_filename != '-':
     f = open(args.output_filename, 'w')
