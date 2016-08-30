@@ -15,11 +15,14 @@ import shutil
 def massage_url(url, mime_type, reason):
 # Return a URL to use in place of the given one.  Download the file to a local
 # directory and return a relative link to that.
+  global files_dir
   cached_name = download_if_needed(url, mime_type, reason)
   local_name = os.path.join(files_dir, os.path.basename(cached_name))
   mkdir_if_needed(os.path.dirname(local_name))
-  to_from(reason, cached_name, local_name)
-  shutil.copy2(cached_name, local_name)
+  if local_name not in local_files_used:
+    to_from(reason, cached_name, local_name)
+    shutil.copy2(cached_name, local_name)
+    local_files_used[local_name] = True
   return local_name
 
 
@@ -31,11 +34,17 @@ def expand_file(filename):
   to_from('offline', filename, None)
   text = open(filename, 'r').read()
   
-  expand_text(filename, text)
+  # Make the needed changes.
+  new_text = expand_text(filename, text)
+
+  # If anything has changed, write it back out.
+  if new_text != text:
+    to_from('offline', None, filename)
+    print >>open(filename, 'w'), new_text
 
 def expand_text(filename, text):
-# Perform offline expansion of the given text: Modify it, and write it
-# back.  Details depend on the file type.
+# Modify the given text and return the result.  (The filename is needed to
+# process relative links correctly.  That file is not read nor written.)
   current_dir = os.path.split(filename)[0] + '/'
   if re.search(r'html$', filename, re.I):
     new_text = expand_html(text, current_dir)
@@ -44,11 +53,8 @@ def expand_text(filename, text):
   else:
     print "Don't know how to expand %s.  Ignoring." % filename
     new_text = text
+  return new_text
 
-  # If the file has changed, write it back out.
-  if new_text != text:
-    to_from('offline', None, filename)
-    print >>open(filename, 'w'), new_text
 
 
 def expand_html(text, current_dir):
@@ -105,10 +111,23 @@ def expand_css(text, current_dir):
   return text
 
 
+def init(_files_dir):
+  global local_files_used, files_dir
+  local_files_used = dict()
+  files_dir = _files_dir
+  mkdir_if_needed(files_dir)
+
+def done():
+  global files_dir
+  for fn in os.listdir(files_dir):
+    fn = os.path.join(files_dir, fn)
+    if fn not in local_files_used:
+      to_from('extra offline file', fn, '(removed)')
+      os.remove(fn)
+
 
 def main():
   # Set up command-line options.
-  global args
   arg_parser = argparse.ArgumentParser()
   arg_parser.add_argument(dest='input_filename', help='input filename')
   args = arg_parser.parse_args()
@@ -117,7 +136,6 @@ def main():
   args.job_name = re.sub('\.html$', '', args.input_filename)
 
   # We'll want an empty directory for all of the files that go with the HTML.
-  global files_dir
   files_dir = args.job_name + "-files"
   if not os.path.exists(files_dir):
     os.makedirs(files_dir)

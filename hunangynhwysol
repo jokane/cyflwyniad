@@ -1,0 +1,56 @@
+#!/usr/bin/env python
+
+# This program attempts to make an HTML file fully self-contained by embedding
+# images, videos and fonts as data urls, and inserting scripts and style sheets
+# inline.  Its name is, according to Google Translate, derived from the Welsh
+# word for "self-contained".
+
+def massage_url_onefile(url, mime_type, reason):
+# Return a URL to use in place of the given one.
+  cached_name = download_if_needed(url, mime_type, reason)
+  to_from(reason, cached_name, None)
+  raw_contents = open(cached_name, 'r').read()
+  base64_contents = base64.b64encode(raw_contents)
+  mime_type = mimetypes.guess_type(url)[0]
+  data_url = "data:%s;base64,%s" % (mime_type, base64_contents)
+  return data_url
+
+  # (src, attrs) = re.search('^(\S*)\s*(.*)', token.text).groups(0)
+  # lower_src = src.lower()
+  # if '.png' in lower_src:
+  #   tag = 'img'
+  #   mime_type = 'image/png'
+  # elif '.jpeg' in lower_src or '.jpg' in lower_src:
+  #   tag = 'img'
+  #   mime_type = 'image/jpg'
+  # elif '.svg' in lower_src:
+  #   tag = 'img'
+  #   mime_type = 'image/svg+xml'
+  # elif '.mp4' in lower_src:
+  #   tag = 'video'
+  #   mime_type = 'video/mp4'
+  # else:
+  #   token.complain("Can't determine file type for " + src)
+  # encoded_data = base64.b64encode(data)
+
+  # #slides_text += "<%s src='' %s />" % (tag, mime_type, encoded_data, attrs)
+
+def expand_onefile_text(html):
+# Look for references to other files, and insert each one directly instead.
+# Return the modified text.
+
+  # Sometimes we insert the actual text.
+  html = re.sub("<link rel=['\"]stylesheet['\"] href=['\"]([^'\"]*)['\"]>", lambda match: "<style>" + get_file(match.group(1), 'text/css', 'onefile expansion') + "</style>", html)
+  html = re.sub("<script src=['\"]([^'\"]*)['\"]>", lambda match: "<script>" + get_file(match.group(1), 'application/javascript', 'onefile expansion'), html)
+  html = re.sub("@import '([^']*)';", lambda match: get_file(match.group(1), 'text/css', 'onefile expansion'), html)
+
+  # Sometimes we need a data: URL.
+  def css_url_replace(match):
+    url = match.group(1)
+    data = get_file(url, None, 'onefile expansion')
+    encoded_data = base64.b64encode(data)
+    return "url(data:application/octet-stream;charset=utf-8;base64,"+encoded_data+")"
+
+  html = re.sub(r"url\((http[^\)]*)\)", lambda match: css_url_replace(match), html)
+  return html
+

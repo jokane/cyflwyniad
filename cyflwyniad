@@ -16,6 +16,9 @@ import subprocess
 import mimetypes
 import shutil
 
+import datgysylltu
+import hunangynhwysol
+
 from common import complain, get_file, to_from, mkdir_if_needed, download_if_needed
 
 # Token Types.
@@ -69,148 +72,6 @@ class Token:
 
   def __repr__(self):
     return "Token(%s, %s, %s, %s)" % (self.tt.__repr__(), self.text.__repr__(), self.filename.__repr__(), self.line.__repr__())
-
-
-def massage_url(url, mime_type, reason):
-# Return a URL to use in place of the given one.
-# There are three options:
-# - If offline is given, download the file to a local cache,
-# and return a relative link to that.
-# - If onefile is given, download the file and convert it to
-# a data URL.
-# - If neither offline nor onefile are given, just return the URL untouched.
-  global args, files_dir
-  if args.offline:
-    cached_name = download_if_needed(url, mime_type, reason)
-    local_name = os.path.join(files_dir, os.path.basename(cached_name))
-    mkdir_if_needed(os.path.dirname(local_name))
-    to_from(reason, cached_name, local_name)
-    shutil.copy2(cached_name, local_name)
-    return local_name
-
-  elif args.onefile:
-    cached_name = download_if_needed(url, mime_type, reason)
-    to_from(reason, cached_name, None)
-    raw_contents = open(cached_name, 'r').read()
-    base64_contents = base64.b64encode(raw_contents)
-    mime_type = mimetypes.guess_type(url)[0]
-    data_url = "data:%s;base64,%s" % (mime_type, base64_contents)
-    return data_url
-
-    # (src, attrs) = re.search('^(\S*)\s*(.*)', token.text).groups(0)
-    # lower_src = src.lower()
-    # if '.png' in lower_src:
-    #   tag = 'img'
-    #   mime_type = 'image/png'
-    # elif '.jpeg' in lower_src or '.jpg' in lower_src:
-    #   tag = 'img'
-    #   mime_type = 'image/jpg'
-    # elif '.svg' in lower_src:
-    #   tag = 'img'
-    #   mime_type = 'image/svg+xml'
-    # elif '.mp4' in lower_src:
-    #   tag = 'video'
-    #   mime_type = 'video/mp4'
-    # else:
-    #   token.complain("Can't determine file type for " + src)
-    # encoded_data = base64.b64encode(data)
-
-    # #slides_text += "<%s src='' %s />" % (tag, mime_type, encoded_data, attrs)
-  else:
-    return url
-
-
-def expand_offline_file(filename):
-  to_from('offline expansion', filename, None)
-
-  # A list of dependencies that will also need to be checked.  We'll return this.
-  deps = list()
-
-  # We'll need to remove this from any dependencies, so that those relative
-  # URLs work correctly.
-  current_dir = os.path.split(filename)[0] + '/'
-
-  text = open(filename, 'r').read()
-  orig = text
-
-  def match_css(match):
-    url = massage_url(match.group(1), 'text/css', 'offline expansion')
-    url = re.sub('^' + current_dir, '', url)
-    deps.append(url)
-    return "<link rel='stylesheet' href='%s'>" % url
-
-  text = re.sub(
-    "<link rel=['\"]stylesheet['\"] href=['\"]([^'\"]*)['\"]>",
-    match_css,
-    text
-  )
-
-  def match_script(match):
-    url = massage_url(match.group(1), 'application/javascript', 'offline expansion')
-    url = re.sub('^' + current_dir, '', url)
-    deps.append(url)
-    return "<script src='%s'>" % url
-
-  text = re.sub(
-    "<script src=['\"]([^'\"]*)['\"]>",
-    match_script,
-    text
-  )
-
-
-  def match_css_import(match):
-    url = massage_url(match.group(1), 'text/css', 'offline expansion')
-    url = re.sub('^' + current_dir, '', url)
-    deps.append(url)
-    return "@import '%s';" % url
-
-  text = re.sub(
-    "@import '([^']*)';",
-    match_css_import,
-    text
-  )
-
-
-  def match_css_url(match):
-    url = massage_url(match.group(1), None, 'offline expansion')
-    url = re.sub('^' + current_dir, '', url)
-    return "url(%s)" % url
-
-  text = re.sub(
-    r"url\((http[^\)]*)\)",
-    match_css_url,
-    text
-  )
-
-  # If the text changed at all, write it back to disk.
-  if orig != text:
-    to_from('offline expansion', None, filename)
-    print >>open(filename, 'w'), text
-
-  return deps
-  
-def expand_onefile_text(html):
-# Look for references to other files, and insert each one directly instead.
-
-  # Sometimes we insert the actual text.
-  html = re.sub("<link rel=['\"]stylesheet['\"] href=['\"]([^'\"]*)['\"]>", lambda match: "<style>" + get_file(match.group(1), 'text/css', 'onefile expansion') + "</style>", html)
-  html = re.sub("<script src=['\"]([^'\"]*)['\"]>", lambda match: "<script>" + get_file(match.group(1), 'application/javascript', 'onefile expansion'), html)
-  html = re.sub("@import '([^']*)';", lambda match: get_file(match.group(1), 'text/css', 'onefile expansion'), html)
-
-  # Sometimes we need a data: URL.
-  def css_url_replace(match):
-    url = match.group(1)
-    data = get_file(url, None, 'onefile expansion')
-    encoded_data = base64.b64encode(data)
-    return "url(data:application/octet-stream;charset=utf-8;base64,"+encoded_data+")"
-
-  html = re.sub(r"url\((http[^\)]*)\)", lambda match: css_url_replace(match), html)
-  return html
-
-
-
-
-
 
 def lex(filename, x):
   # Tokenize the input.  The patterns below are a prioritized list of patterns
@@ -375,7 +236,6 @@ def add_external_script(token):
 def insert_media(token):
   global slides_text
   (src, attrs) = re.search('^(\S*)\s*(.*)', token.text).groups(0)
-  url = massage_url(src, None, 'media')
   lower_src = src.lower()
   if '.png' in lower_src:
     tag = 'img'
@@ -387,7 +247,7 @@ def insert_media(token):
     tag = 'video'
   else:
     token.complain("Can't determine whether " + src + " is an image or a video.")
-  slides_text += "<%s src='%s' %s></%s>" % (tag, url, attrs, tag)
+  slides_text += "<%s src='%s' %s></%s>" % (tag, src, attrs, tag)
 
 def insert_line_break(token):
   global slides_text
@@ -670,18 +530,6 @@ def main():
     complain('Input and output filenames are the same.')
   args.job_name = re.sub('\.cy$', '', args.input_filename)
 
-  # For offline mode, we'll want an empty directory for all of the files that go with the HTML.
-  if args.offline:
-    global files_dir
-    files_dir = args.job_name + "-files"
-    if not os.path.exists(files_dir):
-      os.makedirs(files_dir)
-    else:
-      for f in os.listdir(files_dir):
-        x = os.path.join(files_dir, f)
-        to_from('clean offline files', x, '(removed)')
-        os.unlink(x)
-  
   # The main outcome will be strings to drop into the final HTML file.  Start
   # with nothing.
   global config_text, style_text, script_text, slides_text, slide_number, start_slide_number, is_bold, is_ital, scripts
@@ -702,12 +550,17 @@ def main():
   # Build the HTML page based on these components.
   html = render(args.input_filename)
 
-  # If we're in onefile mode, try to make the page self-contained.
+  # If we're in offline mode or onefile mode, make the appropriate
+  # transformations.
   if args.onefile:
-    html = expand_onefile_text(html)
+    html = hunangynhwysol.expand_onefile_text(html)
+  if args.offline:
+    datgysylltu.init(args.job_name + '-files')
+    html = datgysylltu.expand_text(args.output_filename, html)
+    datgysylltu.done()
 
   # Save the rendered page.
-  to_from('save rendered output', None, args.output_filename)
+  to_from('final output', None, args.output_filename)
 
   if args.output_filename != '-':
     f = open(args.output_filename, 'w')
@@ -716,19 +569,6 @@ def main():
   print >>f, html
   if args.output_filename != '-':
     f.close()
-
-
-  # If we're in offline mode, try to make the page usable without any
-  # connection.  This is trickier than the onefile case, because we need to
-  # open and modify included files as well.  Note that we're writing the file
-  # and reading it back in right away.  This seems reasonable to keep from
-  # treating the main HTML document in any special way.
-  if args.offline:
-    q = [args.output_filename]
-    while q:
-      filename = q.pop()
-      q = q + expand_offline_file(filename)
-
 
 if __name__ == '__main__':
   main()
