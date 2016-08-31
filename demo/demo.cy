@@ -54,6 +54,11 @@ Reveal.addEventListener( 'slidechanged', function( event ) {
   [[https://upload.wikimedia.org/wikipedia/commons/0/0f/Grosser_Panda.JPG width=500]]
 <<<
 
+### Video ###
+>>>
+  [[movies/badday.mp4 data-autoplay width=500]]
+<<<
+
 ### Line breaks ###
 
 Be careful about spacing:
