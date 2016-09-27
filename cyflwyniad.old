@@ -28,15 +28,6 @@ class TT:
   inline_math = 'inline math delimiter'
   em_dash = 'em dash'
 
-# Parser states.
-class S:
-  initial = 'initial' # The initial state.  Next should be a major section heading.
-  config = 'config'   # Configuration for reveal.js.  Just raw characters.
-  style = 'style'     # Top-level CSS.  Just raw characters.
-  script = 'script'   # A raw script to insert into the page.
-  slides = 'slides'   # At the start of a slides section.  Need a slide title next.
-  in_slide = 'inside slide' # Ready for the content of a slide.
-  in_inline_math = 'inline math'    # Within a slide, inside an inline math nugget.
 
 # A token class.  Mainly useful because it can keep track of a location in the
 # input file, for error messages.
@@ -466,19 +457,6 @@ def render(source_file):
 
 
 def process_cy(input_filename):
-  # Check spelling.
-  if input_filename != '-':
-    ret = subprocess.call(['ispell', '-p', '.ispell_default', input_filename])
-    if ret !=0:
-      complain(input_filename + ": Failed spell check.")
-
-
-  # Read the input file.
-  if input_filename != '-':
-    f = open(input_filename, 'r')
-  else:
-    f = sys.stdin
-  x = f.read()
 
   # Split into tokens.
   tokens = lex(input_filename, x)
@@ -487,45 +465,6 @@ def process_cy(input_filename):
   # Convert the token list into the actual HTML text that we want.  This adds
   # to *_text as a side effect.
   parse(tokens)
-
-
-def main():
-  # Sort out the command line.
-  global args
-  parser = argparse.ArgumentParser()
-  parser.add_argument(dest='input_filename', help='input filename')
-  parser.add_argument('--output', '-o', dest='output_filename', help='output filename', default=None)
-  expand_opts = parser.add_mutually_exclusive_group(required=False)
-  expand_opts.add_argument('--offline', dest='offline', help='Try to allow offline viewing by downloading linked files.', action='store_true') 
-  expand_opts.add_argument('--onefile', dest='onefile', help='Try make a fully self-contained html file using data URLs.', action='store_true') 
-  args = parser.parse_args()
-
-  # Make sure we have reasonable filenames.
-  if not args.output_filename:
-    if args.input_filename != '-':
-      args.output_filename = re.sub('\.cy$', '.html', args.input_filename)
-    else:
-      args.output_filename = '-'
-  if args.input_filename == args.output_filename and args.input_filename != '-':
-    complain('Input and output filenames are the same.')
-  args.job_name = re.sub('\.cy$', '', args.input_filename)
-
-  # The main outcome will be strings to drop into the final HTML file.  Start
-  # with nothing.
-  global config_text, style_text, script_text, slides_text, slide_number, start_slide_number, is_bold, is_ital, scripts
-  config_text = ""
-  style_text = ""
-  script_text = ""
-  slides_text = ""
-  slide_number = 0
-  start_slide_number = 0
-  is_bold = False
-  is_ital = False
-  scripts = list()
-
-  # Read and execute the input.
-  to_from('main input', args.input_filename, None)
-  process_cy(args.input_filename)
 
   # Build the HTML page based on these components.
   html = render(args.input_filename)

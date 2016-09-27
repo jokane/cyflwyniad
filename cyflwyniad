@@ -20,6 +20,87 @@ import hunangynhwysol
 
 from common import complain, get_file, to_from, mkdir_if_needed, download_if_needed
 
+# Parser states.
+class S:
+  initial = 'initial' # The initial state.  Next should be a major section heading.
+  config = 'config'   # Configuration for reveal.js.  Just raw characters.
+  style = 'style'     # Top-level CSS.  Just raw characters.
+  script = 'script'   # A raw script to insert into the page.
+  slides = 'slides'   # At the start of a slides section.  Need a slide title next.
+  in_slide = 'inside slide' # Ready for the content of a slide.
+  in_inline_math = 'inline math'    # Within a slide, inside an inline math nugget.
+
+def next_initial(x, doc):
+  print "yo"
+
+
+
+class Document:
+  def __init__(self):
+    # These are the components of the document that we'll assemble into the
+    # final HTML file.
+    self.config = ""
+    self.style = ""
+    self.script = ""
+    self.script_includes = list()
+    self.slides = ""
+    self.slide_number = 0
+    self.start_slide_number = 0
+    self.is_bold = False
+    self.is_ital = False
+
+  def process_cy(self, input_filename):
+    # Read the given input file, append its contents to the current document.
+    to_from('cy input', input_filename, None)
+
+    # Check spelling.
+    if input_filename != '-':
+      ret = subprocess.call(['ispell', '-p', '.ispell_default', input_filename])
+      if ret !=0:
+        complain(input_filename + ": Failed spell check.")
+
+    # Read the input file.
+    if input_filename != '-':
+      f = open(input_filename, 'r')
+    else:
+      f = sys.stdin
+    x = f.read()
+
+    # Process this input, one token at a time.
+    state = S.initial
+
+    dispatch = {
+      S.initial : next_initial
+    }
+
+    dispatch[state](x, self)
+
+
+
+def main():
+  # Sort out the command line.
+  global args
+  parser = argparse.ArgumentParser()
+  parser.add_argument(dest='input_filename', help='input filename')
+  parser.add_argument('--output', '-o', dest='output_filename', help='output filename', default=None)
+  expand_opts = parser.add_mutually_exclusive_group(required=False)
+  expand_opts.add_argument('--offline', dest='offline', help='Try to allow offline viewing by downloading linked files.', action='store_true') 
+  expand_opts.add_argument('--onefile', dest='onefile', help='Try make a fully self-contained html file using data URLs.', action='store_true') 
+  args = parser.parse_args()
+
+  # Make sure we have reasonable filenames.
+  if not args.output_filename:
+    if args.input_filename != '-':
+      args.output_filename = re.sub('\.cy$', '.html', args.input_filename)
+    else:
+      args.output_filename = '-'
+  if args.input_filename == args.output_filename and args.input_filename != '-':
+    complain('Input and output filenames are the same.')
+  args.job_name = re.sub('\.cy$', '', args.input_filename)
+
+  # Start with an empty document, then parse the input file.
+  doc = Document()
+  doc.process_cy(args.input_filename)
 
 if __name__ == '__main__':
   main()
