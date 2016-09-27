@@ -30,10 +30,42 @@ class S:
   in_slide = 'inside slide' # Ready for the content of a slide.
   in_inline_math = 'inline math'    # Within a slide, inside an inline math nugget.
 
-def next_initial(x, doc):
-  print "yo"
+## Each kind of token is defined by a function like this:
+# def token_xxx(x, state, doc):
+#   return None
+# Does this given string start with this token, and is it appropriate here?
+#   If yes, modify the document as appropriate, and return a tuple of the
+#    match object and the next state.
+#   If no, return None.
+#
 
 
+
+def token_style(x, state, doc):
+  match = re.search(r'\[style\]', x)
+  if not match: return None
+  return (match, S.style)
+
+ 
+
+def token_character(x, state, doc):
+  match = re.search(r'(.)', x, re.DOTALL)
+  if not match: return None
+
+  c = match.group(1)
+  
+  print "character:", c
+
+  # TODO: Add this character where it goes.
+  return (match, state)
+  
+
+
+# A list of all of the token functions, ordered by precedence.
+tokens = [
+  token_style,
+  token_character
+]
 
 class Document:
   def __init__(self):
@@ -68,12 +100,23 @@ class Document:
 
     # Process this input, one token at a time.
     state = S.initial
+    line = 1
+    while len(x) > 0:
+      for token in tokens:
+        # Try this token.
+        r = token(x, state, self)
+        
+        # Did it work?
+        if r:
+          # Yes.  Remove the matched part from the string.
+          (match, state) = r
+          eaten = match.group(0)
+          line += eaten.count('\n')
+          x = x[len(eaten):]
 
-    dispatch = {
-      S.initial : next_initial
-    }
+          # Go back to the start of the token list.
+          break
 
-    dispatch[state](x, self)
 
 
 

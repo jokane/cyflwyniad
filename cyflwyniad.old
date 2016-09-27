@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 
 # Token Types.
 class TT:
@@ -53,7 +51,6 @@ def lex(filename, x):
     (r'\\(\})', TT.character),
     #(r'(//.*)', TT.comment),
     (r'\[config\]', TT.config),
-    (r'\[style\]', TT.style),
     (r'\[slides\]', TT.slides),
     (r'\[script\]', TT.script),
     (r'#include (.*)', TT.include),
@@ -75,29 +72,8 @@ def lex(filename, x):
     (r'(\n+)', TT.newline),
     (r'(\$)', TT.inline_math),
     (r'(---)', TT.em_dash),
-    (r'(.)', TT.character),
   ]
 
-  # Pre-compile the patterns.  (Though this seems not to make much difference;
-  # the re module seems to cache the most recent 100 patterns anyway.)
-  patterns = map(lambda x: (re.compile('^' + x[0]), x[1]), patterns)
-
-  line = 1
-  tokens = list()
-  while x:
-    for (pattern, tt) in patterns:
-      match = pattern.search(x)
-      if match:
-        eaten = match.group(0)
-        try:
-          token = match.group(1)
-        except IndexError:
-          token = None
-        tokens.append(Token(tt, token, filename, line))
-        line += eaten.count('\n')
-        x = x[len(eaten):]
-        break
-  return tokens
 
 # These are used to make sure that we opens and closes of various tags are
 # matched.
