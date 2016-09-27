@@ -75,15 +75,15 @@ def token_slidetitle(x, state, doc):
 
   if state == S.in_slide:
     doc.slides += "</div></center>"
-    #TODO pop_tag('slide-body', token)
+    doc.pop_tag('slide-body')
     doc.slides += "</section>"
-    #TODO pop_tag('section', token)
+    doc.pop_tag('section')
 
   doc.slides += "<section>"
   doc.slides += "<h1>" + match.group(1) + "</h1>"
-  #TODO push_tag("section", token)
+  doc.push_tag("section")
   doc.slides += "<center><div class=slide-body>"
-  #TODO push_tag("slide-body", token)
+  doc.push_tag("slide-body")
   doc.slide_number += 1
 
   return (match, S.in_slide)
@@ -147,6 +147,7 @@ class Document:
     self.start_slide_number = 0
     self.is_bold = False
     self.is_ital = False
+    self.tag_stack = list()
 
   def process_cy(self, input_filename):
     # Read the given input file, append its contents to the current document.
@@ -167,7 +168,7 @@ class Document:
 
     # Process this input, one token at a time.
     state = S.initial
-    line = 1
+    self.line = 1
     while len(x) > 0:
       for token in tokens:
         # Try this token.
@@ -179,13 +180,22 @@ class Document:
           (match, new_state) = r
           eaten = match.group(0)
           # print "On line %d, in state %s, %s matched %s." % (line, state, token.__name__, eaten.__repr__())
-          line += eaten.count('\n')
+          self.line += eaten.count('\n')
           state = new_state
           x = x[len(eaten):]
 
           # Go back to the start of the token list.
           break
 
+  # These are used to make sure that we opens and closes of various tags are
+  # matched.
+  def push_tag(self, tag):
+    self.tag_stack.append((tag, self.line))
+
+  def pop_tag(self, tag):
+    (old_tag, old_line) = self.tag_stack.pop()
+    if old_tag != tag:
+      complain("Closing %s tag mismatches with the opening %s tag from line %s." % (tag, old_tag, old_line))
 
   def render(self, source_file_name):
     return '''
