@@ -3,7 +3,6 @@
 class TT:
   comment = 'comment'
   script = 'script'
-  slide_title = 'slide title'
   newline = 'newline'
   character = 'simple character'
   include = 'include directive'
@@ -21,7 +20,6 @@ class TT:
   start = 'start slide'
   vertical_space = 'vertical space'
   inline_math = 'inline math delimiter'
-  em_dash = 'em dash'
 
 
 # A token class.  Mainly useful because it can keep track of a location in the
@@ -51,7 +49,6 @@ def lex(filename, x):
     (r'#script (.*)', TT.external_script),
     (r'#starthere', TT.start),
     (r'#start', TT.start),
-    (r'#{3,}\s*([^#\n]*?)\s*#{3,}', TT.slide_title),
     (r'\[\[([^\]]*)\]\]', TT.media),
     (r'>>>', TT.begin_center),
     (r'<<<', TT.end_center),
@@ -65,7 +62,6 @@ def lex(filename, x):
     (r'__', TT.ital),
     (r'(\n+)', TT.newline),
     (r'(\$)', TT.inline_math),
-    (r'(---)', TT.em_dash),
   ]
 
 
@@ -97,14 +93,6 @@ def append_to_script(token):
   script_text += token.text
 
 
-def begin_slide(token):
-  global slides_text, slide_number
-  slides_text += "<section>"
-  slides_text += "<h1>" + token.text + "</h1>"
-  push_tag("section", token)
-  slides_text += "<center><div class=slide-body>"
-  push_tag("slide-body", token)
-  slide_number += 1
 
 def end_slide(token=None):
   global slides_text
@@ -198,9 +186,6 @@ def insert_vertical_space(token):
   global slides_text
   slides_text += "<p>&nbsp;</p>";
 
-def insert_em_dash(token):
-  global slides_text
-  slides_text += "&mdash;";
 
 def insert_item(token):
   global slides_text
@@ -329,7 +314,6 @@ def parse(tokens):
     (S.in_slide, TT.line_break)     : (insert_line_break,     S.in_slide),
     (S.in_slide, TT.item)           : (insert_item,           S.in_slide),
     (S.in_slide, TT.vertical_space) : (insert_vertical_space, S.in_slide),
-    (S.in_slide, TT.em_dash)        : (insert_em_dash,        S.in_slide),
     (S.in_slide, TT.bold)           : (toggle_bold,           S.in_slide),
     (S.in_slide, TT.ital)           : (toggle_ital,           S.in_slide),
 

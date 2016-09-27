@@ -55,7 +55,31 @@ def token_slides(x, state, doc):
   match = re.search(r'^\[slides\]', x)
   if not match: return None
   return (match, S.slides)
+
+def token_slidetitle(x, state, doc):
+  if state != S.slides and state != S.in_slide: return None
+  match = re.search(r'^#{3,}\s*([^#\n]*?)\s*#{3,}', x)
+  if not match: return None
+
+  doc.slides += "<section>"
+  doc.slides += "<h1>" + match.group(1) + "</h1>"
+  #TODO push_tag("section", token)
+  doc.slides += "<center><div class=slide-body>"
+  #TODO push_tag("slide-body", token)
+  doc.slide_number += 1
+
+  return (match, S.in_slide)
+
+
  
+def token_emdash(x, state, doc):
+  # Em dash, only inside slides.
+  if state != S.in_slide: return None
+  match = re.search(r'^---', x)
+  if not match: return None
+  
+  doc.slides += "&mdash;";
+  return (match, state)
 
 def token_character(x, state, doc):
   # Last resort: A single character.
@@ -68,7 +92,7 @@ def token_character(x, state, doc):
     doc.style += c
   elif state == S.config:
     doc.config += c
-  elif state == S.slides:
+  elif state == S.slides or state == S.in_slide:
     doc.slides += c
   else:
     complain("Don't know what to do with a character in state %s" % state)
@@ -76,14 +100,6 @@ def token_character(x, state, doc):
   # TODO: Add this character where it goes.
   return (match, state)
 
-def token_emdash(x, state, doc):
-  # Em dash, only inside slides.
-  if state != S.in_slide: return None
-  match = re.search(r'^---', x)
-  if not match: return None
-  
-  doc.slides += "&mdash;";
-  return (match, state)
 
 
 # A list of all of the token functions, ordered by precedence.
@@ -91,6 +107,7 @@ tokens = [
   token_style,
   token_config,
   token_slides,
+  token_slidetitle,
   token_emdash,
   token_character
 ]
