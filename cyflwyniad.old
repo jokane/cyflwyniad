@@ -2,7 +2,6 @@
 # Token Types.
 class TT:
   comment = 'comment'
-  script = 'script'
   newline = 'newline'
   character = 'simple character'
   include = 'include directive'
@@ -43,10 +42,7 @@ def lex(filename, x):
   # until nothing is left.  Each pattern can have a () group, which will become
   # the token text.
   patterns = [
-    #(r'(//.*)', TT.comment),
-    (r'\[script\]', TT.script),
     (r'#include (.*)', TT.include),
-    (r'#script (.*)', TT.external_script),
     (r'#starthere', TT.start),
     (r'#start', TT.start),
     (r'\[\[([^\]]*)\]\]', TT.media),
@@ -157,10 +153,6 @@ def end_group(token):
 def include_file(token):
   to_from('include', token.text, None)
   process_cy(token.text)
-
-def add_external_script(token):
-  global scripts
-  scripts.append(token.text)
 
 def insert_media(token):
   global slides_text

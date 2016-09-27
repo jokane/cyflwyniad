@@ -50,6 +50,18 @@ def token_config(x, state, doc):
   if not match: return None
   return (match, S.config)
 
+def token_script(x, state, doc):
+  # Start of a script section.
+  match = re.search(r'^\[script\]', x)
+  if not match: return None
+  return (match, S.script)
+
+def token_external_script(x, state, doc):
+  match = re.search (r'^#script (.*)', x)
+  if not match: return None
+  doc.script_includes.append(match.groups(1))
+  return (match, state)
+
 def token_slides(x, state, doc):
   # Start of a slides section.
   match = re.search(r'^\[slides\]', x)
@@ -92,6 +104,8 @@ def token_character(x, state, doc):
     doc.style += c
   elif state == S.config:
     doc.config += c
+  elif state == S.script:
+    doc.script += c
   elif state == S.slides or state == S.in_slide:
     doc.slides += c
   else:
@@ -106,7 +120,9 @@ def token_character(x, state, doc):
 tokens = [
   token_style,
   token_config,
+  token_script,
   token_slides,
+  token_external_script,
   token_slidetitle,
   token_emdash,
   token_character
@@ -156,7 +172,7 @@ class Document:
           # Yes.  Remove the matched part from the string.
           (match, new_state) = r
           eaten = match.group(0)
-          print "On line %d, in state %s, %s matched %s." % (line, state, token.__name__, eaten.__repr__())
+          # print "On line %d, in state %s, %s matched %s." % (line, state, token.__name__, eaten.__repr__())
           line += eaten.count('\n')
           state = new_state
           x = x[len(eaten):]
