@@ -89,21 +89,10 @@ def append_to_script(token):
   script_text += token.text
 
 
-
-def end_slide(token=None):
-  global slides_text
-  slides_text += "</div></center>"
-  pop_tag('slide-body', token)
-  slides_text += "</section>"
-  pop_tag('section', token)
-
 def set_start_slide(token):
   global start_slide_number
   start_slide_number = slide_number - 1
 
-def end_and_begin_slide(token):
-  end_slide(token)
-  begin_slide(token)
 
 def begin_center(token):
   global slides_text

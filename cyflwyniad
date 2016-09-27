@@ -73,6 +73,12 @@ def token_slidetitle(x, state, doc):
   match = re.search(r'^#{3,}\s*([^#\n]*?)\s*#{3,}', x)
   if not match: return None
 
+  if state == S.in_slide:
+    doc.slides += "</div></center>"
+    #TODO pop_tag('slide-body', token)
+    doc.slides += "</section>"
+    #TODO pop_tag('section', token)
+
   doc.slides += "<section>"
   doc.slides += "<h1>" + match.group(1) + "</h1>"
   #TODO push_tag("section", token)
