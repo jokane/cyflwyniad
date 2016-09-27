@@ -40,21 +40,26 @@ class S:
 
 def token_style(x, state, doc):
   # Start of a style section.
-  match = re.search(r'\[style\]', x)
+  match = re.search(r'^\[style\]', x)
   if not match: return None
   return (match, S.style)
 
 def token_config(x, state, doc):
   # Start of a config section.
-  match = re.search(r'\[config\]', x)
+  match = re.search(r'^\[config\]', x)
   if not match: return None
   return (match, S.config)
 
+def token_slides(x, state, doc):
+  # Start of a slides section.
+  match = re.search(r'^\[slides\]', x)
+  if not match: return None
+  return (match, S.slides)
  
 
 def token_character(x, state, doc):
   # Last resort: A single character.
-  match = re.search(r'(.)', x, re.DOTALL)
+  match = re.search(r'^(.)', x, re.DOTALL)
   if not match: return None
 
   c = match.group(1)
@@ -63,16 +68,30 @@ def token_character(x, state, doc):
     doc.style += c
   elif state == S.config:
     doc.config += c
+  elif state == S.slides:
+    doc.slides += c
+  else:
+    complain("Don't know what to do with a character in state %s" % state)
 
   # TODO: Add this character where it goes.
   return (match, state)
+
+def token_emdash(x, state, doc):
+  # Em dash, only inside slides.
+  if state != S.in_slide: return None
+  match = re.search(r'^---', x)
+  if not match: return None
   
+  doc.slides += "&mdash;";
+  return (match, state)
 
 
 # A list of all of the token functions, ordered by precedence.
 tokens = [
   token_style,
   token_config,
+  token_slides,
+  token_emdash,
   token_character
 ]
 
@@ -118,9 +137,11 @@ class Document:
         # Did it work?
         if r:
           # Yes.  Remove the matched part from the string.
-          (match, state) = r
+          (match, new_state) = r
           eaten = match.group(0)
+          print "On line %d, in state %s, %s matched %s." % (line, state, token.__name__, eaten.__repr__())
           line += eaten.count('\n')
+          state = new_state
           x = x[len(eaten):]
 
           # Go back to the start of the token list.
