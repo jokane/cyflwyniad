@@ -44,7 +44,6 @@ def token_comment(x, state, doc):
   if not match: return None
   return (match, state)
 
-
 def token_style(x, state, doc):
   # Start of a style section.
   match = re.search(r'^\[style\]', x)
@@ -127,6 +126,49 @@ def token_end_center(x, state, doc):
   doc.pop_tag('center')
   return (match, state)
 
+def token_begin_div(x, state, doc):
+  # Start a div with one or more classes.
+  if state != S.in_slide: return None
+  match = re.search(r'^!([a-zA-Z_:=0-9\[\];"\'%+-]*){',x)
+  if not match: return None
+
+  text = match.group(1)
+  match2 = re.match(r'^(.*)\[(.*)\]', text)
+  if match2:
+    div_class = match2.group(1)
+    div_attrs = match2.group(2)
+  else:
+    div_class = text
+    div_attrs = ''
+  div_class = re.sub(r'\+', ' ', div_class)
+  doc.slides += "<div class='%s' %s>" % (div_class, div_attrs)
+  doc.push_tag('div')
+
+  return (match, state)
+
+def token_end_group(x, state, doc):
+  # End any of the groups that are delimited by curly braces.
+  if state != S.in_slide: return None
+  match = re.search(r'^}',x)
+  if not match: return None
+
+  # We need to add the right closing tag to the output.  Check the tag stack to
+  # see what kind of thing we're closing.
+  tag, line = doc.tag_stack[-1]
+  if tag == 'div':
+    doc.pop_tag('div')
+    doc.slides += "</div>"
+  elif tag == 'ul':
+    doc.pop_tag('ul')
+    doc.slides += "</ul>"
+  elif tag == 'ol':
+    doc.pop_tag('ol')
+    doc.slides += "</ol>"
+  else:
+    complain("I see a group closure, but the matching tag is %s on line %s, which is not a group." % (tag, line)) 
+
+  return (match, state)
+
 
 def token_media(x, state, doc):
   # Media: Either an image or a video.
@@ -199,6 +241,8 @@ tokens = [
   token_media,
   token_begin_center,
   token_end_center,
+  token_begin_div,
+  token_end_group,
   token_emdash,
   token_character
 ]
@@ -223,7 +267,6 @@ class Document:
     self.is_ital = False
     self.tag_stack = list()
     self.debug = _debug
-    print "debug=", self.debug
 
   def append(self, doc):
     # Append the contents of another document to this one.

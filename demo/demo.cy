@@ -50,7 +50,7 @@ Be careful about spacing:
 
 ### Math ###
 
-$n^{23}$
+// $n^{23}$
 
 
 ### Dashes ###
