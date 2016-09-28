@@ -18,7 +18,10 @@ import shutil
 import datgysylltu
 import hunangynhwysol
 
-from common import complain, get_file, to_from, mkdir_if_needed, download_if_needed
+from common import get_file, to_from, mkdir_if_needed, download_if_needed
+
+class ParseError(Exception):
+  pass
 
 # Parser states.
 class S:
@@ -211,7 +214,7 @@ def token_end_group(x, state, doc):
     doc.pop_tag('ol')
     doc.slides += "</ol>"
   else:
-    complain("I see a group closure, but the matching tag is %s on line %s, which is not a group." % (tag, line)) 
+    doc.complain("I see a group closure, but the matching tag is %s on line %s, which is not a group." % (tag, line)) 
 
   return (match, state)
 
@@ -233,7 +236,7 @@ def token_media(x, state, doc):
   elif '.mp4' in lower_src:
     tag = 'video'
   else:
-    complain("Can't determine whether " + src + " is an image or a video.")
+    doc.complain("Can't determine whether " + src + " is an image or a video.")
   doc.slides += "<%s src='%s' %s></%s>" % (tag, src, attrs, tag)
   return (match, state)
 
@@ -279,8 +282,10 @@ def token_inline_math(x, state, doc):
   doc.slides += '$' 
 
   if state == S.in_slide:
+    doc.push_tag('$')
     return (match, S.inline_math)
   else:
+    doc.pop_tag('$')
     return (match, S.in_slide)
 
 def token_line_break(x, state, doc):
@@ -322,12 +327,12 @@ def token_character(x, state, doc):
     doc.config += c
   elif state == S.script:
     doc.script += c
-  elif state == S.slides or state == S.in_slide or state == S.inline_math:
+  elif state == S.in_slide or state == S.inline_math:
     doc.slides += c
-  elif state == S.initial and c.isspace():
+  elif (state == S.slides or state == S.initial) and c.isspace():
     pass
   else:
-    complain("Don't know what to do with a character in state %s" % state)
+    doc.complain("Don't know what to do with a character in state %s" % state)
 
   return (match, state)
 
@@ -366,7 +371,7 @@ tokens = [
 # Sanity check: Verify that all of the token_* functions are in the list.
 for name in globals().keys():
   if 'token_' in name and globals()[name] not in tokens:
-    complain('Token function %s is not in tokens list.' % name)
+    raise(Exception('Token function %s is not in tokens list.' % name))
 
 class Document:
   def __init__(self, _debug = False):
@@ -394,6 +399,9 @@ class Document:
     self.slide_number += doc.slide_number
     self.start_slide_number = max(self.start_slide_number, self.slide_number + doc.start_slide_number)
 
+  def complain(self, message):
+    raise ParseError(message)
+
   def process_cy_from_file(self, input_filename):
     # Read the given input file, append its contents to the current document.
 
@@ -401,7 +409,7 @@ class Document:
     if input_filename != '-':
       ret = subprocess.call(['ispell', '-p', '.ispell_default', input_filename])
       if ret !=0:
-        complain(input_filename + ": Failed spell check.")
+        self.complain(input_filename + ": Failed spell check.")
 
     # Read the input file.
     if input_filename != '-':
@@ -447,8 +455,8 @@ class Document:
 
     # Make sure things ended cleanly.
     if self.tag_stack:
-      tag, line = tag_stack.pop()
-      token.complain("Unclosed %s tag on line %s." % (tag, line))
+      tag, line = self.tag_stack.pop()
+      self.complain("Unclosed %s on line %s." % (tag, line))
 
 
   # These are used to make sure that we opens and closes of various tags are
@@ -459,7 +467,7 @@ class Document:
   def pop_tag(self, tag):
     (old_tag, old_line) = self.tag_stack.pop()
     if old_tag != tag:
-      complain("Closing %s tag on line %d mismatches with the opening %s tag on line %d." % (tag, self.line, old_tag, old_line))
+      self.complain("Closing %s tag on line %d mismatches with the opening %s tag on line %d." % (tag, self.line, old_tag, old_line))
 
   def render(self, source_file_name):
     return '''
@@ -521,7 +529,7 @@ def main():
     else:
       args.output_filename = '-'
   if args.input_filename == args.output_filename and args.input_filename != '-':
-    complain('Input and output filenames are the same.')
+    raise('Input and output filenames are the same.')
   args.job_name = re.sub('\.cy$', '', args.input_filename)
 
   # Start with an empty document, then parse the input file.
