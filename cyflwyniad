@@ -74,6 +74,16 @@ def token_include(x, state, doc):
 
   return (match, state)
 
+def token_start_here(x, state, doc):
+  if state != S.in_slide: return None
+  match = re.search(r'^#start', x)
+  if not match: return None
+  doc.start_slide_number = doc.slide_number - 1
+  return match, state
+
+
+
+
 def token_external_script(x, state, doc):
   match = re.search (r'^#script (.*)', x)
   if not match: return None
@@ -256,6 +266,7 @@ tokens = [
   token_script,
   token_slides,
   token_include,
+  token_start_here,
   token_external_script,
   token_slide_title,
   token_media,

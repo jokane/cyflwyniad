@@ -24,7 +24,19 @@
 
 [slides]
 
+### Start Slide ###
+
+The presentation starts two slides forward from here.
+
+### Start Slide ###
+#start
+
+The presentation starts on the next slide.  The start directive on this slide
+is ignored --- only the last one counts.
+
+
 ### Images ###
+#start
 >>>
   [[https://upload.wikimedia.org/wikipedia/commons/0/0f/Grosser_Panda.JPG width=500]]
 <<<
