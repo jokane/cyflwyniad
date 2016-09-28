@@ -369,7 +369,7 @@ for name in globals().keys():
     complain('Token function %s is not in tokens list.' % name)
 
 class Document:
-  def __init__(self, _debug):
+  def __init__(self, _debug = False):
     # These are the components of the document that we'll assemble into the
     # final HTML file.
     self.config = ""
