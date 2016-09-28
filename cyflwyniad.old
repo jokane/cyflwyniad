@@ -1,72 +1,6 @@
-# Token Types.
-class TT:
-  begin_list = 'begin list'
-  bold = 'bold'
-  ital = 'italics'
-  item = 'item'
-  vertical_space = 'vertical space'
 
-def lex(filename, x):
-  # Tokenize the input.  The patterns below are a prioritized list of patterns
-  # to search for.  We peel off the first matching pattern, and then repeat
-  # until nothing is left.  Each pattern can have a () group, which will become
-  # the token text.
-  patterns = [
-    (r'^\.\.\.', TT.vertical_space),
-    (r'^@([a-zA-Z]*){', TT.begin_list),
-    (r'^\*\*', TT.bold),
-    (r'^__', TT.ital),
-  ]
-
-
-def begin_list(token):
-  global slides_text
-  if token.text != 'ul' and token.text != 'ol':
-    token.complain("Unknown list type: %s" % token.text)
-  slides_text += "<%s>" % token.text
-  push_tag(token.text, token)
-
-
-def insert_vertical_space(token):
-  global slides_text
-  slides_text += "<p>&nbsp;</p>";
-
-
-def toggle_bold(token):
-  global slides_text, is_bold
-  if not is_bold:
-    slides_text += '<b>'
-    push_tag('b', token)
-  else:
-    slides_text += '</b>'
-    pop_tag('b', token)
-  is_bold = not is_bold 
-    
-def toggle_ital(token):
-  global slides_text, is_ital
-  if not is_ital:
-    slides_text += '<i>'
-    push_tag('i', token)
-  else:
-    slides_text += '</i>'
-    pop_tag('i', token)
-  is_ital = not is_ital 
-    
 
   
-
-def parse(tokens):
-
-  transitions = {
-    # Outside of the slides section, closing braces, line breaks, and math
-    # delimiters don't need any special treatment.
-
-    # Some HTML shortcuts for slide contents.
-    (S.in_slide, TT.vertical_space) : (insert_vertical_space, S.in_slide),
-    (S.in_slide, TT.bold)           : (toggle_bold,           S.in_slide),
-    (S.in_slide, TT.ital)           : (toggle_ital,           S.in_slide),
-
-  }
 
   # Some states have cleanup that should happen if we terminate in them.  An
   # None entry in the table means that terminating here is OK, but there's
@@ -88,3 +22,4 @@ def parse(tokens):
   if tag_stack:
     tag, token = tag_stack.pop()
     token.complain("Unclosed %s tag." % tag)
+

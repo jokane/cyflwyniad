@@ -96,16 +96,19 @@ def token_slides(x, state, doc):
   if not match: return None
   return (match, S.slides)
 
+def end_slide(doc):
+  doc.slides += "</div></center>"
+  doc.pop_tag('slide-body')
+  doc.slides += "</section>"
+  doc.pop_tag('section')
+
 def token_slide_title(x, state, doc):
   if state != S.slides and state != S.in_slide: return None
   match = re.search(r'^#{3,}\s*([^#\n]*?)\s*#{3,}', x)
   if not match: return None
 
   if state == S.in_slide:
-    doc.slides += "</div></center>"
-    doc.pop_tag('slide-body')
-    doc.slides += "</section>"
-    doc.pop_tag('section')
+    end_slide(doc)
 
   doc.slides += "<section>"
   doc.slides += "<h1>" + match.group(1) + "</h1>"
@@ -233,6 +236,38 @@ def token_media(x, state, doc):
     complain("Can't determine whether " + src + " is an image or a video.")
   doc.slides += "<%s src='%s' %s></%s>" % (tag, src, attrs, tag)
   return (match, state)
+
+def token_bold(x, state, doc):
+  # Toggle boldface.
+  if state != S.in_slide: return None
+  match = re.search(r'^(\*\*)', x)
+  if not match: return None
+
+  if not doc.is_bold:
+    doc.slides += '<b>'
+    doc.push_tag('b')
+  else:
+    doc.slides += '</b>'
+    doc.pop_tag('b')
+  doc.is_bold = not doc.is_bold 
+
+  return (match, state)
+
+def token_italic(x, state, doc):
+  # Toggle italics.
+  if state != S.in_slide: return None
+  match = re.search(r'^(\_\_)', x)
+  if not match: return None
+
+  if not doc.is_italic:
+    doc.slides += '<i>'
+    doc.push_tag('i')
+  else:
+    doc.slides += '</i>'
+    doc.pop_tag('i')
+  doc.is_italic = not doc.is_italic 
+
+  return (match, state)
   
 def token_inline_math(x, state, doc):
   # Inline math delimiter.  No change, but toggle into or out of math mode,
@@ -255,9 +290,18 @@ def token_line_break(x, state, doc):
   if not match: return None
   doc.slides += '<br>'
   return (match, state)
+
+def token_vertical_space(x, state, doc):
+  # Vertical space.
+  if state != S.in_slide: return None
+  match = re.search(r'^\.\.\.', x)
+  if not match: return None
+  
+  doc.slides += "<p>&nbsp;</p>";
+  return (match, state)
  
 def token_emdash(x, state, doc):
-  # Em dash, only inside slides.
+  # Em dash.
   if state != S.in_slide: return None
   match = re.search(r'^---', x)
   if not match: return None
@@ -311,7 +355,10 @@ tokens = [
   token_end_group,
   token_item,
   token_inline_math,
+  token_bold,
+  token_italic,
   token_line_break,
+  token_vertical_space,
   token_emdash,
   token_character
 ]
@@ -333,7 +380,7 @@ class Document:
     self.slide_number = 0
     self.start_slide_number = 0
     self.is_bold = False
-    self.is_ital = False
+    self.is_italic = False
     self.tag_stack = list()
     self.debug = _debug
 
@@ -389,6 +436,16 @@ class Document:
 
           # Go back to the start of the token list.
           break
+
+    # If the input ends inside a slide, terminate it.
+    if state == S.in_slide:
+      end_slide(self)
+
+    # Make sure things ended cleanly.
+    if self.tag_stack:
+      tag, line = tag_stack.pop()
+      token.complain("Unclosed %s tag on line %s." % (tag, line))
+
 
   # These are used to make sure that we opens and closes of various tags are
   # matched.

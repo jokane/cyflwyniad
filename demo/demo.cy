@@ -20,6 +20,10 @@
   display: inline-block;
 }
 
+.reveal b {
+  font-weight: bold;
+}
+
 #include mathjax.cy
 
 [slides]
@@ -41,6 +45,11 @@ is ignored --- only the last one counts.
   [[https://upload.wikimedia.org/wikipedia/commons/0/0f/Grosser_Panda.JPG width=500]]
 <<<
 
+### Video ###
+>>>
+  [[movies/badday.mp4 data-autoplay width=500]]
+<<<
+
 ### Lists ###
 
 An unordered list:
@@ -57,10 +66,15 @@ An ordered list:
   -- Another one.
 }
 
-### Video ###
->>>
-  [[movies/badday.mp4 data-autoplay width=500]]
-<<<
+
+### Vertical spacing ###
+
+Use an ellipsis
+
+...
+
+for blank vertical space.
+
 
 ### Line breaks ###
 
@@ -81,7 +95,11 @@ Be careful about spacing:
 $n^{23}$
 
 
-### Dashes ###
+### Formatting Shortcuts ###
 
---- for an em-dash
+@ul{
+  -- **Boldface**
+  -- __Italics__
+  -- Em-dash ---
+}
 
