@@ -41,6 +41,22 @@ is ignored --- only the last one counts.
   [[https://upload.wikimedia.org/wikipedia/commons/0/0f/Grosser_Panda.JPG width=500]]
 <<<
 
+### Lists ###
+
+An unordered list:
+@ul{
+  -- A bullet point.
+  -- Another one.
+}
+
+...
+
+An ordered list:
+@ol{
+  -- A numbered point.
+  -- Another one.
+}
+
 ### Video ###
 >>>
   [[movies/badday.mp4 data-autoplay width=500]]

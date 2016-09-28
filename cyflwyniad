@@ -156,6 +156,39 @@ def token_begin_div(x, state, doc):
 
   return (match, state)
 
+def token_begin_ul(x, state, doc):
+  # Start an unordered list.
+  if state != S.in_slide: return None
+  match = re.search (r'^@ul{', x)
+  if not match: return None
+
+  doc.slides += '<ul>'
+  doc.push_tag('ul')
+
+  return (match, state)
+
+def token_begin_ol(x, state, doc):
+  # Start an ordered list.
+  if state != S.in_slide: return None
+  match = re.search (r'^@ol{', x)
+  if not match: return None
+
+  doc.slides += '<ol>'
+  doc.push_tag('ol')
+
+  return (match, state)
+
+def token_item(x, state, doc):
+  # An item in an ordered or unordered list.
+  if state != S.in_slide: return None
+  match = re.search (r'^--\s+', x)
+  if not match: return None
+
+  doc.slides += '<li>'
+
+  return (match, state)
+
+
 def token_end_group(x, state, doc):
   # End any of the groups that are delimited by curly braces.
   if state != S.in_slide: return None
@@ -273,7 +306,10 @@ tokens = [
   token_begin_center,
   token_end_center,
   token_begin_div,
+  token_begin_ul,
+  token_begin_ol,
   token_end_group,
+  token_item,
   token_inline_math,
   token_line_break,
   token_emdash,

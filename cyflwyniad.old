@@ -1,11 +1,9 @@
-
 # Token Types.
 class TT:
   begin_list = 'begin list'
   bold = 'bold'
   ital = 'italics'
   item = 'item'
-  start = 'start slide'
   vertical_space = 'vertical space'
 
 def lex(filename, x):
@@ -14,19 +12,11 @@ def lex(filename, x):
   # until nothing is left.  Each pattern can have a () group, which will become
   # the token text.
   patterns = [
-    (r'^#starthere', TT.start),
-    (r'^#start', TT.start),
     (r'^\.\.\.', TT.vertical_space),
-    (r'^--\s+', TT.item),
     (r'^@([a-zA-Z]*){', TT.begin_list),
     (r'^\*\*', TT.bold),
     (r'^__', TT.ital),
   ]
-
-
-def set_start_slide(token):
-  global start_slide_number
-  start_slide_number = slide_number - 1
 
 
 def begin_list(token):
@@ -41,10 +31,6 @@ def insert_vertical_space(token):
   global slides_text
   slides_text += "<p>&nbsp;</p>";
 
-
-def insert_item(token):
-  global slides_text
-  slides_text += "<li>";
 
 def toggle_bold(token):
   global slides_text, is_bold
@@ -76,13 +62,10 @@ def parse(tokens):
     # delimiters don't need any special treatment.
 
     # Some HTML shortcuts for slide contents.
-    (S.in_slide, TT.begin_list)     : (begin_list,            S.in_slide),
-    (S.in_slide, TT.item)           : (insert_item,           S.in_slide),
     (S.in_slide, TT.vertical_space) : (insert_vertical_space, S.in_slide),
     (S.in_slide, TT.bold)           : (toggle_bold,           S.in_slide),
     (S.in_slide, TT.ital)           : (toggle_ital,           S.in_slide),
 
-    (S.in_slide, TT.start)          : (set_start_slide,       S.in_slide)
   }
 
   # Some states have cleanup that should happen if we terminate in them.  An
@@ -105,5 +88,3 @@ def parse(tokens):
   if tag_stack:
     tag, token = tag_stack.pop()
     token.complain("Unclosed %s tag." % tag)
-
-
