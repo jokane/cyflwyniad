@@ -90,6 +90,7 @@ def token_slidetitle(x, state, doc):
 
 
 def token_begin_center(x, state, doc):
+  # Begin and end center tags.
   if state != S.in_slide: return None
   match = re.search(r'^>>>', x)
   if not match: return None
@@ -106,6 +107,29 @@ def token_end_center(x, state, doc):
   doc.slides += "</div>"
   doc.pop_tag('center')
   return (match, state)
+
+
+def token_media(x, state, doc):
+  # Media: Either an image or a video.
+  if state != S.in_slide: return None
+  match = re.search(r'^\[\[([^\]]*)\]\]', x)
+  if not match: return None
+  
+  (src, attrs) = re.search('^(\S*)\s*(.*)', match.group(1)).groups(0)
+  lower_src = src.lower()
+  if '.png' in lower_src:
+    tag = 'img'
+  elif '.jpeg' in lower_src or '.jpg' in lower_src:
+    tag = 'img'
+  elif '.svg' in lower_src:
+    tag = 'img'
+  elif '.mp4' in lower_src:
+    tag = 'video'
+  else:
+    complain("Can't determine whether " + src + " is an image or a video.")
+  doc.slides += "<%s src='%s' %s></%s>" % (tag, src, attrs, tag)
+  return (match, state)
+  
 
  
 def token_emdash(x, state, doc):
@@ -140,7 +164,9 @@ def token_character(x, state, doc):
 
 
 
-# A list of all of the token functions, ordered by precedence.
+# A list of all of the token functions, ordered by precedence.  It's tempting
+# to build this automatically from all of the functions with token_* names, but
+# the order can be important.
 tokens = [
   token_style,
   token_config,
@@ -148,11 +174,17 @@ tokens = [
   token_slides,
   token_external_script,
   token_slidetitle,
+  token_media,
   token_begin_center,
   token_end_center,
   token_emdash,
   token_character
 ]
+
+# Sanity check: Verify that all of the token_* functions are in the list.
+for name in globals().keys():
+  if 'token_' in name and globals()[name] not in tokens:
+    complain('Token function %s is not in tokens list.' % name)
 
 class Document:
   def __init__(self):
@@ -199,7 +231,7 @@ class Document:
           # Yes.  Remove the matched part from the string.
           (match, new_state) = r
           eaten = match.group(0)
-          # print "On line %d, in state %s, %s matched %s." % (line, state, token.__name__, eaten.__repr__())
+          print "On line %d, in state %s, %s matched %s." % (self.line, state, token.__name__, eaten.__repr__())
           self.line += eaten.count('\n')
           state = new_state
           x = x[len(eaten):]

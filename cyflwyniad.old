@@ -3,7 +3,6 @@
 class TT:
   comment = 'comment'
   newline = 'newline'
-  character = 'simple character'
   include = 'include directive'
   external_script = 'external script'
   begin_center = 'begin centering'
@@ -11,7 +10,6 @@ class TT:
   begin_div = 'begin div'
   begin_list = 'begin list'
   end_group = 'end group'
-  media = 'media'
   line_break = 'line break'
   bold = 'bold'
   ital = 'italics'
@@ -20,77 +18,32 @@ class TT:
   vertical_space = 'vertical space'
   inline_math = 'inline math delimiter'
 
-
-# A token class.  Mainly useful because it can keep track of a location in the
-# input file, for error messages.
-class Token:
-  def __init__(self, _tt, _text, _filename, _line):
-    self.tt = _tt
-    self.text = _text
-    self.filename = _filename
-    self.line = _line
-
-  def complain(self, message):
-    complain("%s(%d): %s" % (self.filename, self.line, message))
-
-  def __repr__(self):
-    return "Token(%s, %s, %s, %s)" % (self.tt.__repr__(), self.text.__repr__(), self.filename.__repr__(), self.line.__repr__())
-
 def lex(filename, x):
   # Tokenize the input.  The patterns below are a prioritized list of patterns
   # to search for.  We peel off the first matching pattern, and then repeat
   # until nothing is left.  Each pattern can have a () group, which will become
   # the token text.
   patterns = [
-    (r'#include (.*)', TT.include),
-    (r'#starthere', TT.start),
-    (r'#start', TT.start),
-    (r'\[\[([^\]]*)\]\]', TT.media),
-    (r'<<<', TT.end_center),
-    (r'\\\\', TT.line_break),
-    (r'\.\.\.', TT.vertical_space),
-    (r'--\s+', TT.item),
-    (r'!([a-zA-Z_:=0-9\[\];"\'%+-]*){', TT.begin_div),
-    (r'@([a-zA-Z]*){', TT.begin_list),
-    (r'(})', TT.end_group),
-    (r'\*\*', TT.bold),
-    (r'__', TT.ital),
-    (r'(\n+)', TT.newline),
-    (r'(\$)', TT.inline_math),
+    (r'^#include (.*)', TT.include),
+    (r'^#starthere', TT.start),
+    (r'^#start', TT.start),
+    (r'^<<<', TT.end_center),
+    (r'^\\\\', TT.line_break),
+    (r'^\.\.\.', TT.vertical_space),
+    (r'^--\s+', TT.item),
+    (r'^!([a-zA-Z_:=0-9\[\];"\'%+-]*){', TT.begin_div),
+    (r'^@([a-zA-Z]*){', TT.begin_list),
+    (r'^(})', TT.end_group),
+    (r'^\*\*', TT.bold),
+    (r'^__', TT.ital),
+    (r'^(\n+)', TT.newline),
+    (r'^(\$)', TT.inline_math),
   ]
-
-
-
-# These functions are generally used as actions in parse() below.
-def append_to_config(token):
-  global config_text 
-  config_text += token.text
-
-def append_to_style(token):
-  global style_text 
-  style_text += token.text
-
-def append_to_slides(token):
-  global slides_text 
-  slides_text += token.text
-
-def append_to_script(token):
-  global script_text 
-  script_text += token.text
 
 
 def set_start_slide(token):
   global start_slide_number
   start_slide_number = slide_number - 1
-
-
-def begin_center(token):
-  global slides_text
-  
-def end_center(token):
-  global slides_text
-  slides_text += "</div>"
-  pop_tag('center', token)
 
 def begin_div(token):
   global slides_text
@@ -130,22 +83,6 @@ def end_group(token):
 def include_file(token):
   to_from('include', token.text, None)
   process_cy(token.text)
-
-def insert_media(token):
-  global slides_text
-  (src, attrs) = re.search('^(\S*)\s*(.*)', token.text).groups(0)
-  lower_src = src.lower()
-  if '.png' in lower_src:
-    tag = 'img'
-  elif '.jpeg' in lower_src or '.jpg' in lower_src:
-    tag = 'img'
-  elif '.svg' in lower_src:
-    tag = 'img'
-  elif '.mp4' in lower_src:
-    tag = 'video'
-  else:
-    token.complain("Can't determine whether " + src + " is an image or a video.")
-  slides_text += "<%s src='%s' %s></%s>" % (tag, src, attrs, tag)
 
 def insert_line_break(token):
   global slides_text
