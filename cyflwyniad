@@ -405,6 +405,10 @@ class Document:
   def process_cy_from_file(self, input_filename):
     # Read the given input file, append its contents to the current document.
 
+    # Does the file exist?
+    if input_filename != '-' and not os.path.exists(input_filename):
+      self.complain('Input file %s does not exist.' % input_filename)
+
     # Check spelling.
     if input_filename != '-':
       ret = subprocess.call(['ispell', '-p', '.ispell_default', input_filename])

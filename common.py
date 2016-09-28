@@ -13,7 +13,7 @@ def complain(message):
 
 def get_file(url, mime_type, reason):
   local_name = download_if_needed(url, mime_type, reason)
-  to_from(reason, local_name, '[...]')
+  to_from(reason, local_name, None)
   return open(local_name, 'r').read()
 
 def to_from(reason, to, fr):
@@ -60,7 +60,7 @@ def download_if_needed(url, mime_type, reason):
   cached_name = os.path.join(cache_dir, hashlib.sha224(url).hexdigest()[:8] + extension)
 
   if not os.path.isfile(cached_name):
-    to_from(reason, url, cached_name)
+    to_from(reason, url, cachNone)
     f = urllib2.urlopen(url)
     x = f.read()
     f = open(cached_name, 'w')
