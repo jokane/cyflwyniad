@@ -2,7 +2,6 @@
 # Token Types.
 class TT:
   begin_list = 'begin list'
-  line_break = 'line break'
   bold = 'bold'
   ital = 'italics'
   item = 'item'
@@ -17,7 +16,6 @@ def lex(filename, x):
   patterns = [
     (r'^#starthere', TT.start),
     (r'^#start', TT.start),
-    (r'^\\\\', TT.line_break),
     (r'^\.\.\.', TT.vertical_space),
     (r'^--\s+', TT.item),
     (r'^@([a-zA-Z]*){', TT.begin_list),
@@ -38,10 +36,6 @@ def begin_list(token):
   slides_text += "<%s>" % token.text
   push_tag(token.text, token)
 
-
-def insert_line_break(token):
-  global slides_text
-  slides_text += "<br>"
 
 def insert_vertical_space(token):
   global slides_text
@@ -81,13 +75,8 @@ def parse(tokens):
     # Outside of the slides section, closing braces, line breaks, and math
     # delimiters don't need any special treatment.
 
-    (S.config, TT.line_break) : (lambda token: append_to_config(Token(TT.character, '\\\\', token.filename, token.line)), S.config),
-    (S.style,  TT.line_break) : (lambda token: append_to_style(Token(TT.character, '\\\\', token.filename, token.line)), S.style),
-    (S.script, TT.line_break) : (lambda token: append_to_script(Token(TT.character, '\\\\', token.filename, token.line)), S.script),
-
     # Some HTML shortcuts for slide contents.
     (S.in_slide, TT.begin_list)     : (begin_list,            S.in_slide),
-    (S.in_slide, TT.line_break)     : (insert_line_break,     S.in_slide),
     (S.in_slide, TT.item)           : (insert_item,           S.in_slide),
     (S.in_slide, TT.vertical_space) : (insert_vertical_space, S.in_slide),
     (S.in_slide, TT.bold)           : (toggle_bold,           S.in_slide),
