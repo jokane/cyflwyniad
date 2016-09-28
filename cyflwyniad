@@ -332,7 +332,7 @@ def token_character(x, state, doc):
   elif (state == S.slides or state == S.initial) and c.isspace():
     pass
   else:
-    doc.complain("Don't know what to do with a character in state %s" % state)
+    doc.complain("Stray character in state %s" % state)
 
   return (match, state)
 

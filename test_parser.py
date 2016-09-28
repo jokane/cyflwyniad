@@ -8,6 +8,11 @@ from cyflwyniad import *
 
 tests = [
   (
+    'Junk before declaring a mode.',
+    'xxx [config]',
+    '[config] xxx'
+  ),
+  (
     'Junk before slide title.',
     '[slides] yyy ### xxx ###',
     '[slides] ### xxx ### yyy'
