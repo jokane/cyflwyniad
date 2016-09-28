@@ -69,7 +69,7 @@ def token_include(x, state, doc):
   filename = match.group(1)
   to_from('include', filename, None)
   included_doc = Document(doc.debug)
-  included_doc.process_cy(filename)
+  included_doc.process_cy_from_file(filename)
   doc.append(included_doc)
 
   return (match, state)
@@ -394,7 +394,7 @@ class Document:
     self.slide_number += doc.slide_number
     self.start_slide_number = max(self.start_slide_number, self.slide_number + doc.start_slide_number)
 
-  def process_cy(self, input_filename):
+  def process_cy_from_file(self, input_filename):
     # Read the given input file, append its contents to the current document.
 
     # Check spelling.
@@ -409,6 +409,10 @@ class Document:
     else:
       f = sys.stdin
     x = f.read()
+
+    self.process_cy_string(x)
+
+  def process_cy_string(self, x):
 
     # Hallucinate a newline at the start.  This allows patterns that match the
     # start of a line to work by looking for a newline, even for the very first
@@ -523,7 +527,7 @@ def main():
   # Start with an empty document, then parse the input file.
   to_from('main input', args.input_filename, None)
   doc = Document(args.debug)
-  doc.process_cy(args.input_filename)
+  doc.process_cy_from_file(args.input_filename)
 
   # Build the HTML page based on these components.
   html = doc.render(args.input_filename)
