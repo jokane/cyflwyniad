@@ -46,7 +46,6 @@ def lex(filename, x):
     (r'#starthere', TT.start),
     (r'#start', TT.start),
     (r'\[\[([^\]]*)\]\]', TT.media),
-    (r'>>>', TT.begin_center),
     (r'<<<', TT.end_center),
     (r'\\\\', TT.line_break),
     (r'\.\.\.', TT.vertical_space),
@@ -61,15 +60,6 @@ def lex(filename, x):
   ]
 
 
-# These are used to make sure that we opens and closes of various tags are
-# matched.
-def push_tag(tag, token):
-  tag_stack.append((tag, token))
-
-def pop_tag(tag, token):
-  (old_tag, old_token) = tag_stack.pop()
-  if old_tag != tag:
-    token.complain("Closing %s tag mismatches with the opening %s tag from %s(%s)." % (tag, old_tag, old_token.filename, old_token.line))
 
 # These functions are generally used as actions in parse() below.
 def append_to_config(token):
@@ -96,8 +86,6 @@ def set_start_slide(token):
 
 def begin_center(token):
   global slides_text
-  slides_text += "<div style='text-align: center'>"
-  push_tag('center', token)
   
 def end_center(token):
   global slides_text

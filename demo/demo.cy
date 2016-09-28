@@ -21,7 +21,7 @@
 
 [script]
 
-#script http://rawgit.com/pkra/MathJax-single-file/master/dist/TeXSVG/MathJax.js
+#script http://cdn.rawgit.com/pkra/MathJax-single-file/master/dist/TeXSVG/MathJax.js
 
 // Below is the part of reveal.js's math plugin that does *not* deal with
 // loading the MathJax library.
