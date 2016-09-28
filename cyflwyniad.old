@@ -3,10 +3,6 @@
 class TT:
   comment = 'comment'
   newline = 'newline'
-  include = 'include directive'
-  external_script = 'external script'
-  begin_center = 'begin centering'
-  end_center = 'end centering'
   begin_div = 'begin div'
   begin_list = 'begin list'
   end_group = 'end group'
@@ -24,10 +20,8 @@ def lex(filename, x):
   # until nothing is left.  Each pattern can have a () group, which will become
   # the token text.
   patterns = [
-    (r'^#include (.*)', TT.include),
     (r'^#starthere', TT.start),
     (r'^#start', TT.start),
-    (r'^<<<', TT.end_center),
     (r'^\\\\', TT.line_break),
     (r'^\.\.\.', TT.vertical_space),
     (r'^--\s+', TT.item),
@@ -81,7 +75,6 @@ def end_group(token):
     token.complain("I see a group closure, but the matching tag is %s at %s(%s)" % (tag, token.filename, token.line)) 
 
 def include_file(token):
-  to_from('include', token.text, None)
   process_cy(token.text)
 
 def insert_line_break(token):
@@ -197,13 +190,6 @@ def parse(tokens):
     (S.script,  TT.include) : (include_file, S.script),
     (S.slides,  TT.include) : (include_file, S.slides),
 
-    (S.initial, TT.external_script) : (add_external_script, S.initial),
-    (S.config,  TT.external_script) : (add_external_script, S.config),
-    (S.style,   TT.external_script) : (add_external_script, S.style),
-    (S.script,  TT.external_script) : (add_external_script, S.script),
-    (S.slides,  TT.external_script) : (add_external_script, S.slides),
-
-
     # The slides section should begin with a slide title.
     (S.slides, TT.slide_title) : (begin_slide, S.in_slide),
 
@@ -211,12 +197,9 @@ def parse(tokens):
     (S.in_slide, TT.slide_title) : (end_and_begin_slide, S.in_slide),
 
     # Some HTML shortcuts for slide contents.
-    (S.in_slide, TT.begin_center)   : (begin_center,          S.in_slide),
-    (S.in_slide, TT.end_center)     : (end_center,            S.in_slide),
     (S.in_slide, TT.begin_div)      : (begin_div,             S.in_slide),
     (S.in_slide, TT.begin_list)     : (begin_list,            S.in_slide),
     (S.in_slide, TT.end_group)      : (end_group,             S.in_slide),
-    (S.in_slide, TT.media)          : (insert_media,          S.in_slide),
     (S.in_slide, TT.line_break)     : (insert_line_break,     S.in_slide),
     (S.in_slide, TT.item)           : (insert_item,           S.in_slide),
     (S.in_slide, TT.vertical_space) : (insert_vertical_space, S.in_slide),
