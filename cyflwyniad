@@ -28,7 +28,7 @@ class S:
   script = 'script'   # A raw script to insert into the page.
   slides = 'slides'   # At the start of a slides section.  Need a slide title next.
   in_slide = 'inside slide' # Ready for the content of a slide.
-  in_inline_math = 'inline math'    # Within a slide, inside an inline math nugget.
+  inline_math = 'inline math'    # Within a slide, inside an inline math nugget.
 
 ## Each kind of token is defined by a function like this:
 # def token_xxx(x, state, doc):
@@ -86,7 +86,7 @@ def token_slides(x, state, doc):
   if not match: return None
   return (match, S.slides)
 
-def token_slidetitle(x, state, doc):
+def token_slide_title(x, state, doc):
   if state != S.slides and state != S.in_slide: return None
   match = re.search(r'^#{3,}\s*([^#\n]*?)\s*#{3,}', x)
   if not match: return None
@@ -191,6 +191,19 @@ def token_media(x, state, doc):
   doc.slides += "<%s src='%s' %s></%s>" % (tag, src, attrs, tag)
   return (match, state)
   
+def token_inline_math(x, state, doc):
+  # Inline math delimiter.  No change, but toggle into or out of math mode,
+  # which affects how the next part of the input is parsed.
+  if state != S.in_slide and state != S.inline_math: return None
+  match = re.search(r'^(\$)', x)
+  if not match: return None
+
+  doc.slides += '$' 
+
+  if state == S.in_slide:
+    return (match, S.inline_math)
+  else:
+    return (match, S.in_slide)
 
  
 def token_emdash(x, state, doc):
@@ -215,7 +228,7 @@ def token_character(x, state, doc):
     doc.config += c
   elif state == S.script:
     doc.script += c
-  elif state == S.slides or state == S.in_slide:
+  elif state == S.slides or state == S.in_slide or state == S.inline_math:
     doc.slides += c
   elif state == S.initial and c.isspace():
     pass
@@ -237,12 +250,13 @@ tokens = [
   token_slides,
   token_include,
   token_external_script,
-  token_slidetitle,
+  token_slide_title,
   token_media,
   token_begin_center,
   token_end_center,
   token_begin_div,
   token_end_group,
+  token_inline_math,
   token_emdash,
   token_character
 ]

@@ -1,16 +1,13 @@
 
 # Token Types.
 class TT:
-  begin_div = 'begin div'
   begin_list = 'begin list'
-  end_group = 'end group'
   line_break = 'line break'
   bold = 'bold'
   ital = 'italics'
   item = 'item'
   start = 'start slide'
   vertical_space = 'vertical space'
-  inline_math = 'inline math delimiter'
 
 def lex(filename, x):
   # Tokenize the input.  The patterns below are a prioritized list of patterns
@@ -24,10 +21,8 @@ def lex(filename, x):
     (r'^\.\.\.', TT.vertical_space),
     (r'^--\s+', TT.item),
     (r'^@([a-zA-Z]*){', TT.begin_list),
-    (r'^(})', TT.end_group),
     (r'^\*\*', TT.bold),
     (r'^__', TT.ital),
-    (r'^(\$)', TT.inline_math),
   ]
 
 
@@ -85,33 +80,13 @@ def parse(tokens):
   transitions = {
     # Outside of the slides section, closing braces, line breaks, and math
     # delimiters don't need any special treatment.
-    (S.config, TT.end_group) : (lambda token: append_to_config(Token(TT.character, '}', token.filename, token.line)), S.config),
-    (S.style,  TT.end_group) : (lambda token: append_to_style(Token(TT.character, '}', token.filename, token.line)), S.style),
-    (S.script, TT.end_group) : (lambda token: append_to_script(Token(TT.character, '}', token.filename, token.line)), S.script),
 
     (S.config, TT.line_break) : (lambda token: append_to_config(Token(TT.character, '\\\\', token.filename, token.line)), S.config),
     (S.style,  TT.line_break) : (lambda token: append_to_style(Token(TT.character, '\\\\', token.filename, token.line)), S.style),
     (S.script, TT.line_break) : (lambda token: append_to_script(Token(TT.character, '\\\\', token.filename, token.line)), S.script),
 
-    (S.config, TT.inline_math) : (lambda token: append_to_config(Token(TT.character, '$', token.filename, token.line)), S.config),
-    (S.style,  TT.inline_math) : (lambda token: append_to_style(Token(TT.character, '$', token.filename, token.line)), S.style),
-    (S.script, TT.inline_math) : (lambda token: append_to_script(Token(TT.character, '$', token.filename, token.line)), S.script),
-
-    # Within slides, switch into and out of math mode.
-    (S.in_slide, TT.inline_math) : (append_to_slides, S.in_inline_math),
-
-    (S.in_inline_math, TT.inline_math) : (append_to_slides, S.in_slide),
-
-    # The slides section should begin with a slide title.
-    (S.slides, TT.slide_title) : (begin_slide, S.in_slide),
-
-    # When we see the next title, start a new slide.
-    (S.in_slide, TT.slide_title) : (end_and_begin_slide, S.in_slide),
-
     # Some HTML shortcuts for slide contents.
-    (S.in_slide, TT.begin_div)      : (begin_div,             S.in_slide),
     (S.in_slide, TT.begin_list)     : (begin_list,            S.in_slide),
-    (S.in_slide, TT.end_group)      : (end_group,             S.in_slide),
     (S.in_slide, TT.line_break)     : (insert_line_break,     S.in_slide),
     (S.in_slide, TT.item)           : (insert_item,           S.in_slide),
     (S.in_slide, TT.vertical_space) : (insert_vertical_space, S.in_slide),
@@ -121,30 +96,6 @@ def parse(tokens):
     (S.in_slide, TT.start)          : (set_start_slide,       S.in_slide)
   }
 
-  # The math state is just like the in_slide state, except that we treat } as
-  # just a character, instead of as a group close.  Adding these separately
-  # here to keep from duplicating everything.
-  for ((state, token), (func, next_state)) in transitions.items():
-    if state == S.in_slide and next_state == S.in_slide:
-      if token == TT.end_group:
-        transitions[(S.in_inline_math, token)] = (append_to_slides, S.in_inline_math)
-      else:
-        transitions[(S.in_inline_math, token)] = (func, S.in_inline_math)
-
-  # Actually process the token stream.
-  state = S.initial
-
-  global tag_stack
-  tag_stack = list()
-  for token in tokens:
-    try:
-      (func, next_state) = transitions[state, token.tt]
-    except KeyError:
-      token.complain('Did not expect a %s (%s) in %s state.' % (token.tt, token.text, state))
-    if func:
-      func(token)
-    state = next_state
-  
   # Some states have cleanup that should happen if we terminate in them.  An
   # None entry in the table means that terminating here is OK, but there's
   # nothing to do.
