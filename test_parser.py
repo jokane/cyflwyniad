@@ -2,9 +2,9 @@ import pytest
 from cyflwyniad import *
 
 # A list of snippets to try.  Each is a triple:
-# 1. Explanation of what's begin tested.
+# 1. Explanation of what's being tested.
 # 2. An snippet that should generate an ParseError exception.
-# 3. A snippet that should not generate any exception.
+# 3. A very similar snippet that should not generate any exception.
 
 tests = [
   (
@@ -14,15 +14,27 @@ tests = [
   ),
 
   (
-    'Unclosed tag.',
+    'Unclosed div.',
     '[slides] ### xxx ### !xxx{',
     '[slides] ### xxx ### !xxx{}'
   ),
 
   (
-    'End in math mode.',
+    'Unclosed math mode.',
     '[slides] ### xxx ### $y',
     '[slides] ### xxx ### $y$',
+  ),
+
+  (
+    'Unclosed bold.',
+    '[slides] ### xxx ### **yyy',
+    '[slides] ### xxx ### **yyy**',
+  ),
+
+  (
+    'Mismatched tags.',
+    '[slides] ### xxx ### **__yyy**__',
+    '[slides] ### xxx ### **__yyy__**',
   ),
 
 ]
