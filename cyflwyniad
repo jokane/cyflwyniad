@@ -575,6 +575,6 @@ if __name__ == '__main__':
     try:
       main(args)
     except Exception as e:
-      print >>sys.stderr, "cyflwyniad:", e.message
+      print >>sys.stderr, "cyflwyniad:", e
       sys.exit(1) 
 
