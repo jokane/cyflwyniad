@@ -45,7 +45,7 @@ tests = [
   (
     'Missing media source.',
     '[slides] ### xxx ### [[ ]]',
-    '[slides] ### xxx ### [[yyy.png ]]',
+    '[slides] ### xxx ### [[ yyy.png ]]',
   ),
 
 

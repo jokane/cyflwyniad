@@ -222,7 +222,7 @@ def token_end_group(x, state, doc):
 def token_media(x, state, doc):
   # Media: Either an image or a video.
   if state != S.in_slide: return None
-  match = re.search(r'^\[\[([^\]]*)\]\]', x)
+  match = re.search(r'^\[\[\s*([^\]]*)\]\]', x)
   if not match: return None
   
   (src, attrs) = re.search('^(\S*)\s*(.*)', match.group(1)).groups(0)
