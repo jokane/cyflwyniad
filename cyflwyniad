@@ -435,7 +435,7 @@ class Document:
 
     # Process this input, one token at a time.
     state = S.initial
-    self.line = 1
+    self.line = 0
     while len(x) > 0:
       for token in tokens:
         # Try this token.
