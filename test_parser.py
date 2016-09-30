@@ -42,6 +42,13 @@ tests = [
     '[slides] ### xxx ### **__yyy__**',
   ),
 
+  (
+    'Missing media source.',
+    '[slides] ### xxx ### [[ ]]',
+    '[slides] ### xxx ### [[yyy.png ]]',
+  ),
+
+
 ]
 
 def test_parser(capsys):

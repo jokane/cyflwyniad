@@ -60,7 +60,7 @@ def download_if_needed(url, mime_type, reason):
   cached_name = os.path.join(cache_dir, hashlib.sha224(url).hexdigest()[:8] + extension)
 
   if not os.path.isfile(cached_name):
-    to_from(reason, url, cachNone)
+    to_from(reason, url, cached_name)
     f = urllib2.urlopen(url)
     x = f.read()
     f = open(cached_name, 'w')

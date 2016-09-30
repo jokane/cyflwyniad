@@ -235,8 +235,10 @@ def token_media(x, state, doc):
     tag = 'img'
   elif '.mp4' in lower_src:
     tag = 'video'
+  elif not lower_src:
+    doc.complain("Missing source for media: %s" % match.group(0))
   else:
-    doc.complain("Can't determine whether " + src + " is an image or a video.")
+    doc.complain("Can't determine whether (" + src + ") is an image or a video.")
   doc.slides += "<%s src='%s' %s></%s>" % (tag, src, attrs, tag)
   return (match, state)
 
