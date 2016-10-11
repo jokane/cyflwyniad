@@ -21,7 +21,7 @@ def to_from(reason, to, fr):
   if not fr: fr = '[...]'
   if cache_dir in to: to = '(cache)'
   if cache_dir in fr: fr = '(cache)'
-  print >>sys.stderr, "[%-20s] %30s --> %-30s" % (reason, to, fr)
+  print >>sys.stderr, "[%-20s] %30s --> %s" % (reason, to, fr)
 
 def mkdir_if_needed(d):
   if not os.path.exists(d):
