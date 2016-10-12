@@ -536,6 +536,16 @@ def main(args):
   # Build the HTML page based on these components.
   html = doc.render(args.input_filename)
 
+
+  # If we're in offline mode or onefile mode, make the appropriate
+  # transformations.
+  if args.onefile:
+    html = hunangynhwysol.expand_onefile_text(html)
+  if args.offline:
+    datgysylltu.init(args.job_name + '-files')
+    html = datgysylltu.expand_text(args.output_filename, html)
+    datgysylltu.done()
+
   # Save the rendered page.
   to_from('final output', None, args.output_filename)
 
@@ -546,15 +556,6 @@ def main(args):
   print >>f, html
   if args.output_filename != '-':
     f.close()
-
-  # If we're in offline mode or onefile mode, make the appropriate
-  # transformations.
-  if args.onefile:
-    html = hunangynhwysol.expand_onefile_text(html)
-  if args.offline:
-    datgysylltu.init(args.job_name + '-files')
-    html = datgysylltu.expand_text(args.output_filename, html)
-    datgysylltu.done()
 
 
 if __name__ == '__main__':
