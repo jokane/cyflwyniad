@@ -61,7 +61,10 @@ def download_if_needed(url, mime_type, reason):
 
   if not os.path.isfile(cached_name):
     to_from(reason, url, cached_name)
-    f = urllib2.urlopen(url)
+    try:
+      f = urllib2.urlopen(url)
+    except Exception as e:
+      raise Exception("Failed to open URL '%s': %s" % (url, e))
     x = f.read()
     f = open(cached_name, 'w')
     print >>f, x,

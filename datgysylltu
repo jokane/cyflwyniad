@@ -144,7 +144,8 @@ def main():
       x = os.path.join(files_dir, f)
       to_from('clean offline files', x, '(removed)')
       os.unlink(x)
-
+  
+  init(files_dir)
   expand_file(args.input_filename)
 
   # All done!

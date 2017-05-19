@@ -231,9 +231,13 @@ def token_media(x, state, doc):
     tag = 'img'
   elif '.jpeg' in lower_src or '.jpg' in lower_src:
     tag = 'img'
+  elif '.gif' in lower_src:
+    tag = 'img'
   elif '.svg' in lower_src:
     tag = 'img'
   elif '.mp4' in lower_src:
+    tag = 'video'
+  elif '.webm' in lower_src:
     tag = 'video'
   elif not lower_src:
     doc.complain("Missing source for media: %s" % match.group(0))
