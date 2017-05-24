@@ -62,7 +62,10 @@ def download_if_needed(url, mime_type, reason):
   if not os.path.isfile(cached_name):
     to_from(reason, url, cached_name)
     try:
-      f = urllib2.urlopen(url)
+      request = urllib2.Request(url)
+      request.add_header('User-Agent', 'Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11')
+      opener = urllib2.build_opener()  
+      f = opener.open(request)
     except Exception as e:
       raise Exception("Failed to open URL '%s': %s" % (url, e))
     x = f.read()
